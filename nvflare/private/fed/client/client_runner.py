@@ -587,7 +587,7 @@ class ClientRunner(TBI):
     def init_run(self, app_root, args):
         sync_timeout = self.get_positive_float_var(
             var_name=ConfigVarName.RUNNER_SYNC_TIMEOUT,
-            default=2.0,
+            default=30.0,
         )
         max_sync_tries = self.get_positive_int_var(
             var_name=ConfigVarName.MAX_RUNNER_SYNC_TRIES,
