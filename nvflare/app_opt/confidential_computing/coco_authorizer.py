@@ -1,0 +1,37 @@
+# Copyright (c) 2024, NVIDIA CORPORATION.  All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+
+from nvflare.app_opt.confidential_computing.cc_authorizer import CCAuthorizer
+
+COCO_NAMESPACE = "x-coco"
+
+class CoCoAuthorizer(CCAuthorizer):
+    def __init__(self):
+        self.token = "eyJraWQiOiJudi1hdHRlc3RhdGlvbi1zaWduLWtpZC1wcm9kLTIwMjQwMjI5MTUzMjIxIiwiYWxnIjoiRVMzODQifQ.eyJzdWIiOiJOVklESUEtR1BVLUFUVEVTVEFUSU9OIiwic2VjYm9vdCI6dHJ1ZSwieC1udmlkaWEtZ3B1LW1hbnVmYWN0dXJlciI6Ik5WSURJQSBDb3Jwb3JhdGlvbiIsIngtbnZpZGlhLWF0dGVzdGF0aW9uLXR5cGUiOiJHUFUiLCJpc3MiOiJodHRwczpcL1wvbnJhcy5hdHRlc3RhdGlvbi5udmlkaWEuY29tIiwiZWF0X25vbmNlIjoiOTMxRDhERDBBREQyMDNBQzNEOEI0RkJERTc1RTExNTI3OEVFRkNEQ0VBQzVCODc2NzFBNzQ4RjMyMzY0REZDQiIsIngtbnZpZGlhLWF0dGVzdGF0aW9uLWRldGFpbGVkLXJlc3VsdCI6eyJ4LW52aWRpYS1ncHUtZHJpdmVyLXJpbS1zY2hlbWEtdmFsaWRhdGVkIjp0cnVlLCJ4LW52aWRpYS1ncHUtdmJpb3MtcmltLWNlcnQtdmFsaWRhdGVkIjp0cnVlLCJ4LW52aWRpYS1ncHUtYXR0ZXN0YXRpb24tcmVwb3J0LWNlcnQtY2hhaW4tdmFsaWRhdGVkIjp0cnVlLCJ4LW52aWRpYS1ncHUtZHJpdmVyLXJpbS1zY2hlbWEtZmV0Y2hlZCI6dHJ1ZSwieC1udmlkaWEtZ3B1LWF0dGVzdGF0aW9uLXJlcG9ydC1wYXJzZWQiOnRydWUsIngtbnZpZGlhLWdwdS1ub25jZS1tYXRjaCI6dHJ1ZSwieC1udmlkaWEtZ3B1LXZiaW9zLXJpbS1zaWduYXR1cmUtdmVyaWZpZWQiOnRydWUsIngtbnZpZGlhLWdwdS1kcml2ZXItcmltLXNpZ25hdHVyZS12ZXJpZmllZCI6dHJ1ZSwieC1udmlkaWEtZ3B1LWFyY2gtY2hlY2siOnRydWUsIngtbnZpZGlhLWF0dGVzdGF0aW9uLXdhcm5pbmciOm51bGwsIngtbnZpZGlhLWdwdS1tZWFzdXJlbWVudHMtbWF0Y2giOnRydWUsIngtbnZpZGlhLWdwdS1hdHRlc3RhdGlvbi1yZXBvcnQtc2lnbmF0dXJlLXZlcmlmaWVkIjp0cnVlLCJ4LW52aWRpYS1ncHUtdmJpb3MtcmltLXNjaGVtYS12YWxpZGF0ZWQiOnRydWUsIngtbnZpZGlhLWdwdS1kcml2ZXItcmltLWNlcnQtdmFsaWRhdGVkIjp0cnVlLCJ4LW52aWRpYS1ncHUtdmJpb3MtcmltLXNjaGVtYS1mZXRjaGVkIjp0cnVlLCJ4LW52aWRpYS1ncHUtdmJpb3MtcmltLW1lYXN1cmVtZW50cy1hdmFpbGFibGUiOnRydWUsIngtbnZpZGlhLWdwdS1kcml2ZXItcmltLWRyaXZlci1tZWFzdXJlbWVudHMtYXZhaWxhYmxlIjp0cnVlfSwieC1udmlkaWEtdmVyIjoiMS4wIiwibmJmIjoxNzA5MzIxNzkzLCJ4LW52aWRpYS1ncHUtZHJpdmVyLXZlcnNpb24iOiI1MzUuMTI5LjAzIiwiZGJnc3RhdCI6ImRpc2FibGVkIiwiaHdtb2RlbCI6IkdIMTAwIEEwMSBHU1AgQlJPTSIsIm9lbWlkIjoiNTcwMyIsIm1lYXNyZXMiOiJjb21wYXJpc29uLXN1Y2Nlc3NmdWwiLCJleHAiOjE3MDkzMjUzOTMsImlhdCI6MTcwOTMyMTc5MywieC1udmlkaWEtZWF0LXZlciI6IkVBVC0yMSIsInVlaWQiOiI1NzQ4MTY4MTA5NTk2NjcxNzQ0NTEyNjg3OTc2MDgzNDQ5NDE5ODc0MjM0ODE3MzIiLCJ4LW52aWRpYS1ncHUtdmJpb3MtdmVyc2lvbiI6Ijk2LjAwLjc0LjAwLjExIiwianRpIjoiNDdkNWQxZmYtYjRjOC00ODI1LThjMDYtY2EzMTI0YjMxYzVjIn0.k0L6u82fzXOzwbQ46llZn5BNu82OagpT3I-26O0JDBFQyII7TkjhzhD67yYUaqAHUGZ1fmNxtVuT4PTRTWX6zgRu4G1KuInAMiQwk3joc7lkVgJ80vXkhZ5DkHXzZbh"
+
+    def generate(self):
+        return self.token
+    
+    def verify(self, token):
+        return True
+
+    def can_generate(self) -> bool:
+        return True
+
+    def can_verify(self) -> bool:
+        return True
+
+    def get_namespace(self) -> str:
+        return COCO_NAMESPACE
