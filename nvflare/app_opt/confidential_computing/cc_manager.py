@@ -139,7 +139,7 @@ class CCManager(FLComponent):
 
         if not old_cc_info or set(new_tokens) != set(old_tokens):
             self.participant_cc_info[token_owner] = peer_cc_info
-            self.logger.info(f"Added CC client: {token_owner} tokens: {peer_cc_info}")
+            self.logger.debug(f"Added CC client: {token_owner} tokens: {peer_cc_info}")
 
             with self.lock:
                 self._verify_running_jobs(fl_ctx)
@@ -179,7 +179,7 @@ class CCManager(FLComponent):
             if not my_token:
                 return "failed to get CC token"
 
-            self.logger.info(f"site: {self.site_name} namespace: {namespace} got the token: {my_token}")
+            self.logger.debug(f"site: {self.site_name} namespace: {namespace} got the token: {my_token}")
             cc_info = {CC_TOKEN: my_token, CC_ISSUER: issuer, CC_NAMESPACE: namespace, CC_TOKEN_VALIDATED: True}
             self.participant_cc_info[self.site_name].append(cc_info)
 
@@ -217,7 +217,7 @@ class CCManager(FLComponent):
             return err
 
         fl_ctx.set_prop(key=PEER_CTX_CC_TOKEN, value=participant_tokens, sticky=False, private=False)
-        self.logger.info(f"{self.site_name=} set PEER_CTX_CC_TOKEN with {participant_tokens=}")
+        self.logger.debug(f"{self.site_name=} set PEER_CTX_CC_TOKEN with {participant_tokens=}")
         return ""
 
     def _verify_participants(self, participants):
@@ -256,7 +256,7 @@ class CCManager(FLComponent):
             if not issuer.verify(token):
                 token = issuer.generate()
                 i[CC_TOKEN] = token
-                self.logger.info(f"site: {self.site_name} namespace: {issuer.get_namespace()} got a new CC token: {token}")
+                self.logger.debug(f"site: {self.site_name} namespace: {issuer.get_namespace()} got a new CC token: {token}")
 
     def _validate_participants_tokens(self, participants) -> str:
         self.logger.debug(f"Validating participant tokens {participants=}")
