@@ -27,18 +27,20 @@ class MAAAuthorizer(CCAuthorizer):
         cp = subprocess.run(cmd, capture_output=True)
         print(f"{cp.stdout=}\n{cp.stderr=}")
         # print(token)
-        token = cp.stdout.decode('utf-8')
+        token = cp.stdout
         return cp.stdout
     
     def verify(self, token):
         try:
             header = jwt.get_unverified_header(token)
-            self.logger.info(f"{header=}")
+            print(f"{header=}")
             alg = header.get('alg')
             jwks_client = PyJWKClient(f"https://{maa_endpoint}/certs")
             signing_key = jwks_client.get_signing_key_from_jwt(token)
             claims = jwt.decode(token, signing_key.key, algorithms=[alg])
-            self.logger.info(claims)
+            if claims:
+                print(f"{claims=}")
+                return True
         except:
             return False
         return True
@@ -51,3 +53,11 @@ class MAAAuthorizer(CCAuthorizer):
 
     def get_namespace(self) -> str:
         return MAA_NAMESPACE
+
+
+if __name__ == "__main__":
+  m = MAAAuthorizer()
+  token = m.generate()
+  print(type(token))
+  v = m.verify(token)
+  print(v)

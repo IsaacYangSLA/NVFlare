@@ -55,7 +55,7 @@ policy = """{
 """
 class GPUAuthorizer(CCAuthorizer):
     def __init__(self, verifier_url="https://nras.attestation.nvidia.com/v1/attest/gpu"):
-        self.can_generate = True
+        self._can_generate = True
         self.client = attestation.Attestation()
         self.client.set_name("thisNode1")
         self.client.set_nonce("931d8dd0add203ac3d8b4fbde75e115278eefcdceac5b87671a748f32364dfcb")
@@ -93,7 +93,7 @@ class GPUAuthorizer(CCAuthorizer):
         return result
 
     def can_generate(self) -> bool:
-        return self.can_generate
+        return True
 
     def can_verify(self) -> bool:
         return True
