@@ -27,6 +27,7 @@ class MAAAuthorizer(CCAuthorizer):
         cp = subprocess.run(cmd, capture_output=True)
         print(f"{cp.stdout=}\n{cp.stderr=}")
         # print(token)
+        token = cp.stdout.decode('utf-8')
         return cp.stdout
     
     def verify(self, token):
