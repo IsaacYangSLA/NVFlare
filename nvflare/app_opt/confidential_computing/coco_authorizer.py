@@ -42,15 +42,17 @@ class CoCoAuthorizer(CCAuthorizer):
     def verify(self, token):
         try:
             header = jwt.get_unverified_header(token)
-            self.logger.info(f"{header=}")
+            print(f"{header=}")
             alg = header.get('alg')
             jwks_client = PyJWKClient(f"https://{maa_endpoint}/certs")
             signing_key = jwks_client.get_signing_key_from_jwt(token)
             claims = jwt.decode(token, signing_key.key, algorithms=[alg])
-            self.logger.info(claims)
+            if claims:
+                print(f"{claims=}")
+                return True
         except:
             return False
-        return True
+        return False
 
     def can_generate(self) -> bool:
         return True
@@ -60,3 +62,11 @@ class CoCoAuthorizer(CCAuthorizer):
 
     def get_namespace(self) -> str:
         return COCO_NAMESPACE
+
+if __name__ == "__main__":
+  m = CoCoAuthorizer()
+  token = m.generate()
+  print(type(token))
+  v = m.verify(token)
+  print(v)
+
