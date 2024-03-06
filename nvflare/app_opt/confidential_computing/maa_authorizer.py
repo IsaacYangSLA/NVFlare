@@ -11,33 +11,23 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import json
-import requests
-import time
+
 import jwt
 from jwt import PyJWKClient
+import subprocess
 
 from nvflare.app_opt.confidential_computing.cc_authorizer import CCAuthorizer
 
-COCO_NAMESPACE = "x-ms"
+MAA_NAMESPACE = "x-ms"
 maa_endpoint = 'sharedeus2.eus2.attest.azure.net'
 
-class CoCoAuthorizer(CCAuthorizer):
+class MAAAuthorizer(CCAuthorizer):
     def generate(self):
-        count = 0
-        token = ""
-        while True:
-            count = count + 1
-            try:
-                r = requests.post('http://localhost:8284/attest/maa', data=json.dumps({"maa_endpoint": maa_endpoint, "runtime_data":  "ewp9"}), headers={"Content-Type" : "application/json"})
-                if r.status_code == requests.codes.ok:
-                    token = r.json().get("token")
-                break
-            except:
-                if count > 5:
-                    break
-                time.sleep(2)
-        return token
+        cmd = ['sudo', 'AttestationClient', '-o', 'token']
+        cp = subprocess.run(cmd, capture_output=True)
+        print(f"{cp.stdout=}\n{cp.stderr=}")
+        # print(token)
+        return cp.stdout
     
     def verify(self, token):
         try:
@@ -59,4 +49,4 @@ class CoCoAuthorizer(CCAuthorizer):
         return True
 
     def get_namespace(self) -> str:
-        return COCO_NAMESPACE
+        return MAA_NAMESPACE
