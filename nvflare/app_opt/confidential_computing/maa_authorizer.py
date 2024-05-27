@@ -39,7 +39,7 @@ class MAAAuthorizer(CCAuthorizer):
             signing_key = jwks_client.get_signing_key_from_jwt(token)
             claims = jwt.decode(token, signing_key.key, algorithms=[alg])
             if claims:
-                print(f"{claims=}")
+                # print(f"{claims=}")
                 return True
         except:
             return False
