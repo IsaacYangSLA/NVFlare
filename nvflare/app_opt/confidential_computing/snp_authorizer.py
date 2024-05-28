@@ -45,6 +45,7 @@ class SNPAuthorizer(CCAuthorizer):
             if cp.returncode != 0:
                 return False
             print(f"{cp.returncode=}\n{cp.stdout=}\n{cp.stderr=}")
+            print(f"{token=}")
             report_bin = base64.b64decode(token)
             with open('rcv_report.bin', 'wb') as report_file:
                 report_file.write(report_bin)
@@ -57,13 +58,14 @@ class SNPAuthorizer(CCAuthorizer):
             cp = subprocess.run(cmd, capture_output=True)
             if cp.returncode != 0:
                 return False
-            print(f"{cp.returncode=}\n{cp.stdout=}\n{cp.stderr=}")
+            print(f"verify: {cp.returncode=}\n{cp.stdout=}\n{cp.stderr=}")
             cmd = ['snpguest', 'verify', 'attestation', './cert', 'rcv_report.bin']
             cp = subprocess.run(cmd, capture_output=True)
             if cp.returncode != 0:
                 return False
-            print(f"{cp.returncode=}\n{cp.stdout=}\n{cp.stderr=}")
+            print(f"attest: {cp.returncode=}\n{cp.stdout=}\n{cp.stderr=}")
             # print(f"{claims=}")
+            print("Now returning True")
             return True
         except:
             print(traceback.format_exc())

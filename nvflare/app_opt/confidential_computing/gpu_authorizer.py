@@ -88,6 +88,7 @@ class GPUAuthorizer(CCAuthorizer):
             self.client.set_token(name='nvflare_node1', eat_token=eat_token)
             result = self.client.validate_token(self.remote_att_result_policy)
         except BaseException as e:
+            print("Exception {e=}")
             result = False
         return result
 

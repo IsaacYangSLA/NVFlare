@@ -279,12 +279,15 @@ class CCManager(FLComponent):
         if not participants:
             return result, invalid_participant_list
         for k, cc_info in participants.items():
+            self.logger.info(f"{cc_info=}")
             for v in cc_info:
                 token = v.get(CC_TOKEN, "")
                 namespace = v.get(CC_NAMESPACE, "")
                 verifier = self.cc_verifiers.get(namespace, None)
+                self.logger.info(f"{verifier=}")
                 if verifier and verifier.verify(token):
                     result[k + "." + namespace] = True
+                    self.logger.info(f"{k=}, {v=}, {result=}")
                 else:
                     invalid_participant_list.append(k + " namespace: {" + namespace + "}")
         self.logger.info(f"CC - results from validating participants' tokens: {result}")
