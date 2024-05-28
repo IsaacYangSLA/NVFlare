@@ -29,7 +29,7 @@ class SNPAuthorizer(CCAuthorizer):
         with open('request.bin', 'wb') as request_file:
             request_file.write(b'\x01'*64)
         cp = subprocess.run(cmd, capture_output=True)
-        print(f"{cp.stdout=}\n{cp.stderr=}")
+        self.logger.info(f"{cp.stdout=}\n{cp.stderr=}")
         # print(token)
         with open('report.bin', 'rb') as report_file:
             token = base64.b64encode(report_file.read())
@@ -37,15 +37,14 @@ class SNPAuthorizer(CCAuthorizer):
         return token
     
     def verify(self, token):
+        self.logger.info("Now verifying SNP")
         try:
-            if not os.path.exists('./certs'):
-                os.mkdir('./certs')
+            if not os.path.exists('./cert'):
+                os.mkdir('./cert')
             cmd = ['snpguest', 'fetch', 'ca', 'der', 'genoa', './cert', '--endorser', 'vcek']
             cp = subprocess.run(cmd, capture_output=True)
             if cp.returncode != 0:
                 return False
-            print(f"{cp.returncode=}\n{cp.stdout=}\n{cp.stderr=}")
-            print(f"{token=}")
             report_bin = base64.b64decode(token)
             with open('rcv_report.bin', 'wb') as report_file:
                 report_file.write(report_bin)
@@ -53,19 +52,17 @@ class SNPAuthorizer(CCAuthorizer):
             cp = subprocess.run(cmd, capture_output=True)
             if cp.returncode != 0:
                 return False
-            print(f"{cp.returncode=}\n{cp.stdout=}\n{cp.stderr=}")
             cmd = ['snpguest', 'verify', 'certs', './cert']
             cp = subprocess.run(cmd, capture_output=True)
             if cp.returncode != 0:
                 return False
-            print(f"verify: {cp.returncode=}\n{cp.stdout=}\n{cp.stderr=}")
             cmd = ['snpguest', 'verify', 'attestation', './cert', 'rcv_report.bin']
             cp = subprocess.run(cmd, capture_output=True)
             if cp.returncode != 0:
                 return False
-            print(f"attest: {cp.returncode=}\n{cp.stdout=}\n{cp.stderr=}")
+            self.logger.info(f"{cp.returncode=}\n{cp.stdout=}\n{cp.stderr=}")
             # print(f"{claims=}")
-            print("Now returning True")
+            self.logger.info("Now returning True")
             return True
         except:
             print(traceback.format_exc())
