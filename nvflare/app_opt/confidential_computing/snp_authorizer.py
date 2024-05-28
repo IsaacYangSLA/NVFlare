@@ -29,7 +29,6 @@ class SNPAuthorizer(CCAuthorizer):
         with open('request.bin', 'wb') as request_file:
             request_file.write(b'\x01'*64)
         cp = subprocess.run(cmd, capture_output=True)
-        self.logger.info(f"{cp.stdout=}\n{cp.stderr=}")
         # print(token)
         with open('report.bin', 'rb') as report_file:
             token = base64.b64encode(report_file.read())
@@ -37,7 +36,7 @@ class SNPAuthorizer(CCAuthorizer):
         return token
     
     def verify(self, token):
-        self.logger.info("Now verifying SNP")
+        print("Now verifying SNP")
         try:
             if not os.path.exists('./cert'):
                 os.mkdir('./cert')
@@ -60,9 +59,8 @@ class SNPAuthorizer(CCAuthorizer):
             cp = subprocess.run(cmd, capture_output=True)
             if cp.returncode != 0:
                 return False
-            self.logger.info(f"{cp.returncode=}\n{cp.stdout=}\n{cp.stderr=}")
+            print(f"{cp.returncode=}\n{cp.stdout=}\n{cp.stderr=} Now returning True")
             # print(f"{claims=}")
-            self.logger.info("Now returning True")
             return True
         except:
             print(traceback.format_exc())
