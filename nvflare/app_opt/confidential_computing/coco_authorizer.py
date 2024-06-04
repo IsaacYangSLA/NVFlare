@@ -42,13 +42,13 @@ class CoCoAuthorizer(CCAuthorizer):
     def verify(self, token):
         try:
             header = jwt.get_unverified_header(token)
-            print(f"{header=}")
+            # print(f"{header=}")
             alg = header.get('alg')
             jwks_client = PyJWKClient(f"https://{maa_endpoint}/certs")
             signing_key = jwks_client.get_signing_key_from_jwt(token)
             claims = jwt.decode(token, signing_key.key, algorithms=[alg])
             if claims:
-                print(f"{claims=}")
+                # print(f"{claims=}")
                 return True
         except:
             return False

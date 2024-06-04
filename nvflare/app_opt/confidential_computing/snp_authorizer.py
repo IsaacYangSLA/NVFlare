@@ -32,34 +32,34 @@ class SNPAuthorizer(CCAuthorizer):
         # print(token)
         with open('report.bin', 'rb') as report_file:
             token = base64.b64encode(report_file.read())
-        print(token)
+        # print(token)
         return token
     
     def verify(self, token):
-        print("Now verifying SNP")
+        # print("Now verifying SNP")
         try:
-            if not os.path.exists('./cert'):
-                os.mkdir('./cert')
-            cmd = ['snpguest', 'fetch', 'ca', 'der', 'genoa', './cert', '--endorser', 'vcek']
-            cp = subprocess.run(cmd, capture_output=True)
-            if cp.returncode != 0:
-                return False
+            # if not os.path.exists('./cert'):
+            #     os.mkdir('./cert')
+            # cmd = ['snpguest', 'fetch', 'ca', 'der', 'genoa', './cert', '--endorser', 'vcek']
+            # cp = subprocess.run(cmd, capture_output=True)
+            # if cp.returncode != 0:
+            #     return False
             report_bin = base64.b64decode(token)
             with open('rcv_report.bin', 'wb') as report_file:
                 report_file.write(report_bin)
-            cmd = ['snpguest', 'fetch', 'vcek', 'der', 'genoa', './cert', 'rcv_report.bin']
-            cp = subprocess.run(cmd, capture_output=True)
-            if cp.returncode != 0:
-                return False
-            cmd = ['snpguest', 'verify', 'certs', './cert']
-            cp = subprocess.run(cmd, capture_output=True)
-            if cp.returncode != 0:
-                return False
+            # cmd = ['snpguest', 'fetch', 'vcek', 'der', 'genoa', './cert', 'rcv_report.bin']
+            # cp = subprocess.run(cmd, capture_output=True)
+            # if cp.returncode != 0:
+            #     return False
+            # cmd = ['snpguest', 'verify', 'certs', './cert']
+            # cp = subprocess.run(cmd, capture_output=True)
+            # if cp.returncode != 0:
+            #     return False
             cmd = ['snpguest', 'verify', 'attestation', './cert', 'rcv_report.bin']
             cp = subprocess.run(cmd, capture_output=True)
             if cp.returncode != 0:
                 return False
-            print(f"{cp.returncode=}\n{cp.stdout=}\n{cp.stderr=} Now returning True")
+            print(f"{cp.stdout=}\n{cp.stderr=} Now returning True")
             # print(f"{claims=}")
             return True
         except:

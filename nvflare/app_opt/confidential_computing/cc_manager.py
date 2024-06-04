@@ -51,12 +51,12 @@ class CCManager(FLComponent):
         self.cc_issuers = []
         self.cc_verifiers = {}
         self.participant_cc_info = {}  # used by the Server to keep tokens of all clients
-        print("Inside CC Manager", flush=True)
+        # print("Inside CC Manager", flush=True)
         self.counter = 0
         self.lock = threading.Lock()
 
     def handle_event(self, event_type: str, fl_ctx: FLContext):
-        print(f"Event CC Manager: {event_type}", flush=True)
+        # print(f"Event CC Manager: {event_type}", flush=True)
         if event_type == EventType.SYSTEM_BOOTSTRAP:
             try:
                 self._setup_cc_authorizers(fl_ctx)
@@ -118,14 +118,10 @@ class CCManager(FLComponent):
 
     def _prepare_token_for_login(self, fl_ctx: FLContext):
         # client side: if token expired then generate a new one
-        if self.counter != 0:
-            self.counter = (self.counter + 1) % 10
-        else:
-            self.counter = 1
-            self._handle_expired_tokens()
-            site_cc_info = self.participant_cc_info[self.site_name]
-            cc_info = self._get_participant_tokens(site_cc_info)
-            fl_ctx.set_prop(key=CC_INFO, value=cc_info, sticky=False, private=False)
+        self._handle_expired_tokens()
+        site_cc_info = self.participant_cc_info[self.site_name]
+        cc_info = self._get_participant_tokens(site_cc_info)
+        fl_ctx.set_prop(key=CC_INFO, value=cc_info, sticky=False, private=False)
 
     def _add_client_token(self, fl_ctx: FLContext):
         # server side
@@ -184,7 +180,7 @@ class CCManager(FLComponent):
             if not my_token:
                 return "failed to get CC token"
 
-            self.logger.info(f"site: {self.site_name} namespace: {namespace} got the token: {my_token}")
+            # self.logger.info(f"site: {self.site_name} namespace: {namespace} got the token: {my_token}")
             cc_info = {CC_TOKEN: my_token, CC_ISSUER: issuer, CC_NAMESPACE: namespace, CC_TOKEN_VALIDATED: True}
             self.participant_cc_info[self.site_name].append(cc_info)
 
@@ -279,15 +275,15 @@ class CCManager(FLComponent):
         if not participants:
             return result, invalid_participant_list
         for k, cc_info in participants.items():
-            self.logger.info(f"{cc_info=}")
+            # self.logger.info(f"{cc_info=}")
             for v in cc_info:
                 token = v.get(CC_TOKEN, "")
                 namespace = v.get(CC_NAMESPACE, "")
                 verifier = self.cc_verifiers.get(namespace, None)
-                self.logger.info(f"{verifier=}")
+                # self.logger.info(f"{verifier=}")
                 if verifier and verifier.verify(token):
                     result[k + "." + namespace] = True
-                    self.logger.info(f"{k=}, {v=}, {result=}")
+                    # self.logger.info(f"{k=}, {v=}, {result=}")
                 else:
                     invalid_participant_list.append(k + " namespace: {" + namespace + "}")
         self.logger.info(f"CC - results from validating participants' tokens: {result}")
