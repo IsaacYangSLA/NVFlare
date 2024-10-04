@@ -84,7 +84,7 @@ class ConnectorManager:
                 self.adhoc_scheme = adhoc_conf.get(_KEY_SCHEME)
                 self.adhoc_resources = adhoc_conf.get(_KEY_RESOURCES)
 
-        self.logger.debug(f"internal scheme={self.int_scheme}, resources={self.int_resources}")
+        self.logger.info(f"internal scheme={self.int_scheme}, resources={self.int_resources}")
         self.logger.debug(f"adhoc scheme={self.adhoc_scheme}, resources={self.adhoc_resources}")
         self.comm_config = comm_config
 

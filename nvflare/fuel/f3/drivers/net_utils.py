@@ -27,8 +27,8 @@ from nvflare.security.logging import secure_format_exception
 
 log = logging.getLogger(__name__)
 
-LO_PORT = 1025
-HI_PORT = 65535
+LO_PORT = 8004
+HI_PORT = 8005
 MAX_ITER_SIZE = 10
 RANDOM_TRIES = 20
 BIND_TIME_OUT = 5
@@ -257,6 +257,7 @@ def get_tcp_urls(scheme: str, resources: dict) -> (str, str):
     if not host:
         host = "localhost"
 
+    host = "0.0.0.0"
     port = get_open_tcp_port(resources)
     if not port:
         raise CommError(CommError.BAD_CONFIG, "Can't find an open port in the specified range")

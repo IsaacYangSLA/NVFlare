@@ -162,6 +162,7 @@ class ClientEngine(ClientEngineInternalSpec):
         self.logger.info("Starting client app. rank: {}".format(self.rank))
 
         open_port = get_open_ports(1)[0]
+        open_port = 8004
 
         server_config = list(self.client.servers.values())[0]
         self.client_executor.start_app(

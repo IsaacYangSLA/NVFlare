@@ -23,6 +23,8 @@ from abc import ABC, abstractmethod
 
 from nvflare.apis.fl_constant import AdminCommandNames, RunProcessKey, SystemConfigs
 from nvflare.apis.resource_manager_spec import ResourceManagerSpec
+from nvflare.app_opt.job_launch.job_launch_spec import JobState
+from nvflare.app_opt.job_launch.k8s_job_launch import K8sJobLaunch, K8sJobHandle
 from nvflare.fuel.common.exit_codes import PROCESS_EXIT_REASON, ProcessExitCode
 from nvflare.fuel.f3.cellnet.core_cell import FQCN
 from nvflare.fuel.f3.cellnet.defs import MessageHeaderKey, ReturnCode
@@ -142,6 +144,7 @@ class ProcessExecutor(ClientExecutor):
         self.job_query_timeout = ConfigService.get_float_var(
             name="job_query_timeout", conf=SystemConfigs.APPLICATION_CONF, default=5.0
         )
+        self.k8s_job_launch = K8sJobLaunch("/workspace/nvflare/config")
 
     def start_app(
         self,
@@ -177,33 +180,62 @@ class ProcessExecutor(ClientExecutor):
         command_options = ""
         for t in args.set:
             command_options += " " + t
-        command = (
-            f"{sys.executable} -m nvflare.private.fed.app.client.worker_process -m "
-            + args.workspace
-            + " -w "
-            + self.startup
-            + " -t "
-            + client.token
-            + " -d "
-            + client.ssid
-            + " -n "
-            + job_id
-            + " -c "
-            + client.client_name
-            + " -p "
-            + str(client.cell.get_internal_listener_url())
-            + " -g "
-            + target
-            + " -scheme "
-            + scheme
-            + " -s fed_client.json "
-            " --set" + command_options + " print_conf=True"
-        )
-        # use os.setsid to create new process group ID
-        process = subprocess.Popen(shlex.split(command, True), preexec_fn=os.setsid, env=new_env)
 
-        self.logger.info("Worker child process ID: {}".format(process.pid))
+        root_hostpath = "/home/azureuser/wksp/k2k/disk"
+        job_image = "localhost:32000/nvfl-k8s:0.0.1"
+        job_config = {
+            "name": job_id,
+            "image": job_image,
+            "container_name": f"container-{job_id}",
+            "volume_mount_list": [{'name':'workspace-nvflare', 'mountPath': '/workspace/nvflare'}],
+            "volume_list": [{
+                'name': "workspace-nvflare",
+                'hostPath': {
+                    'path': root_hostpath,
+                    'type': 'Directory'
+                    }
+            }],
+            "module_args": {
+                '-m': args.workspace,
+                '-w': self.startup,
+                '-t': client.token,
+                '-d': client.ssid,
+                '-n': job_id,
+                '-c': client.client_name,
+                '-p': "tcp://parent-pod:8004",
+                '-g': target,
+                '-scheme': scheme,
+                '-s': "fed_client.json"
+            },
+            "set_list": args.set
+        }
+        job_handle = self.k8s_job_launch.launch(job_id, job_config, 60)
+        # command = (
+        #     f"{sys.executable} -m nvflare.private.fed.app.client.worker_process -m "
+        #     + args.workspace
+        #     + " -w "
+        #     + self.startup
+        #     + " -t "
+        #     + client.token
+        #     + " -d "
+        #     + client.ssid
+        #     + " -n "
+        #     + job_id
+        #     + " -c "
+        #     + client.client_name
+        #     + " -p "
+        #     + str(client.cell.get_internal_listener_url())
+        #     + " -g "
+        #     + target
+        #     + " -scheme "
+        #     + scheme
+        #     + " -s fed_client.json "
+        #     " --set" + command_options + " print_conf=True"
+        # )
+        # # use os.setsid to create new process group ID
+        # process = subprocess.Popen(shlex.split(command, True), preexec_fn=os.setsid, env=new_env)
 
+        process = job_handle
         client.multi_gpu = False
 
         with self.lock:
@@ -425,8 +457,9 @@ class ProcessExecutor(ClientExecutor):
         self.logger.info(f"run ({job_id}): waiting for child worker process to finish.")
         child_process = self.run_processes.get(job_id, {}).get(RunProcessKey.CHILD_PROCESS)
         if child_process:
+            # child_process.enter_states([JobState.SUCCEEDED, JobState.TERMINATED])
+            # return_code = child_process.get_state()
             child_process.wait()
-
             return_code = get_return_code(child_process, job_id, workspace, self.logger)
 
             self.logger.info(f"run ({job_id}): child worker process finished with RC {return_code}")
