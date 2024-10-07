@@ -84,18 +84,12 @@ class K8sJobHandle(JobHandleSpec):
             job_config.get('volume_mount_list',
                 [{'name':'workspace-nvflare', 'mountPath': '/workspace/nvflare'}]
             )
-        self.container_args_module_args_set_dict =\
-            job_config.get('set_dict',
-                {
-                    'secure_train': 'true',
-                    'uid': None,
-                    'org': None,
-                    'config_folder': 'config'
-                }
+        self.container_args_module_args_sets = ['--set'] + \
+            job_config.get('set_list',
+                ['secure_train=true',
+                 'config_folder=config'
+                ]
             )
-        self.container_args_module_args_set_dict_as_list = ['--set']
-        for k, v in self.container_args_module_args_set_dict.items():
-            self.container_args_module_args_set_dict_as_list.append(f"{k}={v}")
         self.container_args_module_args_dict =\
             job_config.get('module_args',
                 {
@@ -135,7 +129,7 @@ class K8sJobHandle(JobHandleSpec):
         self.container_list[0]['args'] =\
             self.container_args_python_args_list + \
             self.container_args_module_args_dict_as_list + \
-            self.container_args_module_args_set_dict_as_list
+            self.container_args_module_args_sets
         self.container_list[0]['volumeMounts'] = self.container_volume_mount_list
 
     def get_manifest(self):
