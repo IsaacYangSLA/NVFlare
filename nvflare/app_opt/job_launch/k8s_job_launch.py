@@ -45,7 +45,7 @@ class K8sJobHandle(JobHandleSpec):
                 'image': None,
                 'name': None,
                 'command': ['/usr/local/bin/python'],
-                'args': None,                # args_list + args_dict + args_set_dict
+                'args': None,                # args_list + args_dict + args_sets
                 'volumeMounts': None,        # volume_mount_list
                 'imagePullPolicy': 'Always'
             }
@@ -64,12 +64,6 @@ class K8sJobHandle(JobHandleSpec):
             '-g': None,
             '-scheme': None,
             '-s': None,
-        }
-        self.container_args_module_args_set_dict = {
-            'secure_train': 'true',
-            'uid': None,
-            'org': None,
-            'config_folder': 'config'
         }
         self.container_volume_mount_list = [
             {
@@ -138,20 +132,6 @@ class K8sJobHandle(JobHandleSpec):
     def abort(self, timeout=None):
         resp = self.api_instance.delete_namespaced_pod(name=self.id, namespace=self.namespace, grace_period_seconds=0)
         return self.enter_states([JobState.TERMINATED], timeout=timeout)
-    
-    def enter_states(self, job_states_to_enter, timeout=None):
-        starting_time = time.time()
-        if not isinstance(job_states_to_enter, (list, tuple)):
-            job_states_to_enter = [job_states_to_enter]
-        if not all([isinstance(js, JobState)] for js in job_states_to_enter):
-            raise ValueError(f"expect job_states_to_enter with valid values, but get {job_states_to_enter}")
-        while True:
-            job_state = self.get_state()
-            if job_state in job_states_to_enter:
-                return True
-            elif timeout is not None and time.time()-starting_time>timeout:
-                return False
-            time.sleep(1)
     
     def get_state(self):
         try:

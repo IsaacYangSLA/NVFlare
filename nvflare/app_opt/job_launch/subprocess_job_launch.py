@@ -3,7 +3,7 @@ import subprocess
 import sys
 import time
 
-from job_launch_spec import JobLaunchSpec, JobHandleSpec, JobState
+from job_launch_spec import JobLaunchSpec, JobHandleSpec, JobState, JobLaunchSingleton
 
 def process_state_mapping(return_code):
     if return_code is None:
@@ -37,11 +37,12 @@ class SubprocessJobHandle(JobHandleSpec):
         return subprocess_args
 
     def abort(self, timeout=None):
-        try:
-            os.killpg(os.getpgid(self.process.pid), 9)
-        except:
-            pass
-        self.process.terminate()
+        if self.process:
+            try:
+                os.killpg(os.getpgid(self.process.pid), 9)
+            except:
+                pass
+            self.process.terminate()
   
     def enter_states(self, job_states_to_enter: list, timeout=None):
         starting_time = time.time()
@@ -61,11 +62,14 @@ class SubprocessJobHandle(JobHandleSpec):
         self.proceess = subprocess.Popen(self.subprocess_args, preexec_fn=os.setsid, env=self.env)
     
     def get_state(self):
-        return_code = self.process.poll()
-        return process_state_mapping(return_code)
+        if self.process:
+            return_code = self.process.poll()
+            return process_state_mapping(return_code)
+        else:
+            return JobState.UNKNOWN
 
 
-class SubprocessJobLaunch(JobLaunchSpec):
+class SubprocessJobLaunch(JobLaunchSpec, metaclass=JobLaunchSingleton):
     def launch(self, job_name, job_config, timeout=None):
         job_handle = SubprocessJobHandle(job_name, job_config)
         job_handle.launch()

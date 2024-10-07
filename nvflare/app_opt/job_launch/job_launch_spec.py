@@ -20,8 +20,19 @@ class JobHandleSpec:
         self.id = id
     
     def enter_states(self, job_states_to_enter: list, timeout=None):
-        raise NotImplemented
-
+        starting_time = time.time()
+        if not isinstance(job_states_to_enter, (list, tuple)):
+            job_states_to_enter = [job_states_to_enter]
+        if not all([isinstance(js, JobState)] for js in job_states_to_enter):
+            raise ValueError(f"expect job_states_to_enter with valid values, but get {job_states_to_enter}")
+        while True:
+            job_state = self.get_state()
+            if job_state in job_states_to_enter:
+                return True
+            elif timeout is not None and time.time()-starting_time>timeout:
+                return False
+            time.sleep(1)
+    
     def abort(self, timeout=None):
         raise NotImplemented
 
