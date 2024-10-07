@@ -15,26 +15,21 @@ class JobState(Enum):
     SUCCEEDED = "succeeded"
     UNKNOWN = "unknown"
 
-    POD_STATE_MAPPING = \
-        {"Pending": STARTING,
-         "Running": RUNNING,
-         "Succeeded": SUCCEEDED,
-         "Failed": TERMINATED,
-         "Unknown": UNKNOWN
-         }
-
 class JobHandleSpec:
     def __init__(self, id: str):
         self.id = id
     
+    def enter_states(self, job_states_to_enter: list, timeout=None):
+        raise NotImplemented
+
     def abort(self, timeout=None):
         raise NotImplemented
-    
+
     def get_state(self):
         raise NotImplemented
 
 class JobLaunchSpec:
-    def launch(self, job_config: dict) -> JobHandleSpec:
+    def launch(self, job_name: str, job_config: dict, timeout=None) -> JobHandleSpec:
         raise NotImplemented
 
 class JobLaunchSingleton(type):
