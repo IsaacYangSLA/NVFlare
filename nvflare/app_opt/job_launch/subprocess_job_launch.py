@@ -30,10 +30,10 @@ class SubprocessJobHandle(JobHandleSpec):
         for k, v in job_config.get("module_args", {}).items():
             subprocess_args.append(k)
             subprocess_args.append(v)
-        setting = job_config.get("set_list", [])
-        if setting:
+        set_list = job_config.get('set_list')
+        if set_list is None:
             subprocess_args.append('--set')
-            subprocess_args += setting
+            subprocess_args += set_list
         return subprocess_args
 
     def abort(self, timeout=None):
@@ -44,20 +44,6 @@ class SubprocessJobHandle(JobHandleSpec):
                 pass
             self.process.terminate()
   
-    def enter_states(self, job_states_to_enter: list, timeout=None):
-        starting_time = time.time()
-        if not isinstance(job_states_to_enter, (list, tuple)):
-            job_states_to_enter = [job_states_to_enter]
-        if not all([isinstance(js, JobState)] for js in job_states_to_enter):
-            raise ValueError(f"expect job_states_to_enter with valid values, but get {job_states_to_enter}")
-        while True:
-            job_state = self.get_state()
-            if job_state in job_states_to_enter:
-                return True
-            elif timeout is not None and time.time()-starting_time>timeout:
-                return False
-            time.sleep(1)
-    
     def launch(self):
         self.proceess = subprocess.Popen(self.subprocess_args, preexec_fn=os.setsid, env=self.env)
     

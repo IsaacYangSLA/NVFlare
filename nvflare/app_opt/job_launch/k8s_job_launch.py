@@ -78,12 +78,11 @@ class K8sJobHandle(JobHandleSpec):
             job_config.get('volume_mount_list',
                 [{'name':'workspace-nvflare', 'mountPath': '/workspace/nvflare'}]
             )
-        self.container_args_module_args_sets = ['--set'] + \
-            job_config.get('set_list',
-                ['secure_train=true',
-                 'config_folder=config'
-                ]
-            )
+        set_list = job_config.get('set_list')
+        if set_list is None:
+            self.container_args_module_args_sets = list()
+        else:
+            self.container_args_module_args_sets = ['--set'] + set_list
         self.container_args_module_args_dict =\
             job_config.get('module_args',
                 {
