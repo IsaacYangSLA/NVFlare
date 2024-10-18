@@ -17,6 +17,7 @@ import json
 import os
 import subprocess
 import tempfile
+import sys
 
 from nvflare.lighter import tplt_utils, utils
 
@@ -30,6 +31,14 @@ for csp in supported_csps:
     csp_template_file = os.path.join(lighter_folder, "impl", f"{csp}_template.yml")
     if os.path.exists(csp_template_file):
         template.update(utils.load_yaml(csp_template_file))
+builder = os.environ.get("DASHBOARD_BUILDER")
+print(sys.path)
+if builder:
+    import importlib
+    try:
+        builder = importlib.import_module(builder)
+    except:
+        builder = None
 
 
 def get_csp_start_script_name(csp):
@@ -135,6 +144,11 @@ def gen_server(key):
             template["readme_fs"],
             "t",
         )
+        if builder:
+            try:
+                builder.server_build(server_dir, project, project.server_extras)
+            except:
+                pass
         run_args = ["zip", "-rq", "-P", key, "tmp.zip", "."]
         subprocess.run(run_args, cwd=tmp_dir)
         fileobj = io.BytesIO()
@@ -211,6 +225,11 @@ def gen_client(key, id):
             template["readme_fc"],
             "t",
         )
+        if builder:
+            try:
+                builder.client_build(client_dir, project, client.extras)
+            except:
+                pass
 
         run_args = ["zip", "-rq", "-P", key, "tmp.zip", "."]
         subprocess.run(run_args, cwd=tmp_dir)
@@ -268,6 +287,11 @@ def gen_user(key, id):
             utils.sh_replace(template["adm_notebook"], replacement_dict),
             "t",
         )
+        if builder:
+            try:
+                builder.user_build(user_dir, project, user.extras)
+            except:
+                pass
         run_args = ["zip", "-rq", "-P", key, "tmp.zip", "."]
         subprocess.run(run_args, cwd=tmp_dir)
         fileobj = io.BytesIO()
