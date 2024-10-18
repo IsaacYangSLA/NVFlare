@@ -111,15 +111,15 @@ def overseer_blob():
         return jsonify({"status": "unauthorized"}), 403
 
 
-@app.route("/api/v1/servers/<int:id>/blob", methods=["POST"])
+@app.route("/api/v1/server/blob", methods=["POST"])
 @jwt_required()
-def server_blob(id):
+def server_blob():
     claims = get_jwt()
     if claims.get("role") == "project_admin":
         pin = request.json.get("pin")
-        fileobj, filename = Store.get_server_blob(pin, id == 1)
+        fileobj, filename = Store.get_server_blob(pin)
         response = make_response(fileobj.read())
-        response.headers.set("Content-Type", "zip")
+        response.headers.set("Content-Type", "application/zip")
         response.headers.set("Content-Disposition", f'attachment; filename="{filename}"')
         return response
     else:

@@ -57,15 +57,15 @@ class Project(db.Model):
     description = db.Column(db.String(2048), default="")
     # scheme = db.Column(db.String(16), default="grpc")
     app_location = db.Column(db.String(2048), default="")
-    ha_mode = db.Column(db.Boolean, default=False)
+    # ha_mode = db.Column(db.Boolean, default=False)
     starting_date = db.Column(db.String(128), default="")
     end_date = db.Column(db.String(128), default="")
-    overseer = db.Column(db.String(128), default="")
-    server1 = db.Column(db.String(128), default="")
-    server2 = db.Column(db.String(128), default="")
+    # overseer = db.Column(db.String(128), default="")
+    server = db.Column(db.String(1024), default="")
+    # server2 = db.Column(db.String(128), default="")
     root_cert = db.Column(db.String(4096), default="")
     root_key = db.Column(db.String(4096), default="")
-
+    server_extras = db.Column(db.String(16384), default="")
     def asdict(self):
         table_dict = {
             c.name: getattr(self, c.name)
@@ -82,9 +82,10 @@ class Client(CommonMixin, db.Model):
     capacity = db.relationship("Capacity", backref="clients")
     organization = db.relationship("Organization", backref="clients")
     creator_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    target_server = db.Column(db.String(128), default="")
     approval_state = db.Column(db.Integer, default=0)
     download_count = db.Column(db.Integer, default=0)
-
+    extras = db.Column(db.String(16384), default="")
     def asdict(self):
         table_dict = {c.name: getattr(self, c.name) for c in self.__table__.columns if "_id" not in c.name}
         table_dict.update({"organization": self.organization.name, "capacity": json.loads(self.capacity.capacity)})
@@ -100,6 +101,8 @@ class User(CommonMixin, db.Model):
     organization = db.relationship("Organization", backref="users")
     approval_state = db.Column(db.Integer, default=0)
     download_count = db.Column(db.Integer, default=0)
+    target_server = db.Column(db.String(128))
+    extras = db.Column(db.String(16384), default="")
 
     def asdict(self):
         table_dict = {c.name: getattr(self, c.name) for c in self.__table__.columns if "_id" not in c.name}

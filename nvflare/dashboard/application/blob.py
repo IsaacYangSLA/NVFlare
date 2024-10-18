@@ -69,48 +69,32 @@ def gen_overseer(key):
     return fileobj, f"{entity.name}.zip"
 
 
-def gen_server(key, first_server=True):
+def gen_server(key):
     project = Project.query.first()
-    if first_server:
-        entity = Entity(project.server1)
-        fl_port = 8002
-        admin_port = 8003
-    else:
-        entity = Entity(project.server2)
-        fl_port = 8102
-        admin_port = 8103
+    entity = Entity(project.server)
+    fl_port = 8002
+    admin_port = 8003
     issuer = Entity(project.short_name)
     signing_cert_pair = CertPair(issuer, project.root_key, project.root_cert)
     cert_pair = make_cert(entity, signing_cert_pair)
-
+    server_name = entity.name.split(',')[0]
     config = json.loads(template["fed_server"])
     server_0 = config["servers"][0]
     server_0["name"] = project.short_name
-    server_0["service"]["target"] = f"{entity.name}:{fl_port}"
+    server_0["service"]["target"] = f"{server_name}:{fl_port}"
     server_0["service"]["scheme"] = project.scheme if hasattr(project, "scheme") else "grpc"
-    server_0["admin_host"] = entity.name
+    server_0["admin_host"] = server_name
     server_0["admin_port"] = admin_port
-    if project.ha_mode:
-        overseer_agent = {"path": "nvflare.ha.overseer_agent.HttpOverseerAgent"}
-        overseer_agent["args"] = {
-            "role": "server",
-            "overseer_end_point": f"https://{project.overseer}:8443/api/v1",
-            "project": project.short_name,
-            "name": entity.name,
-            "fl_port": str(fl_port),
-            "admin_port": str(admin_port),
-        }
-    else:
-        overseer_agent = {"path": "nvflare.ha.dummy_overseer_agent.DummyOverseerAgent"}
-        overseer_agent["args"] = {"sp_end_point": f"{project.server1}:8002:8003"}
+    overseer_agent = {"path": "nvflare.ha.dummy_overseer_agent.DummyOverseerAgent"}
+    overseer_agent["args"] = {"sp_end_point": f"{server_name}:{fl_port}:{admin_port}"}
 
     config["overseer_agent"] = overseer_agent
     replacement_dict = {
         "admin_port": admin_port,
         "fed_learn_port": fl_port,
         "config_folder": "config",
-        "ha_mode": "true" if project.ha_mode else "false",
         "docker_image": project.app_location.split(" ")[-1] if project.app_location else "nvflare/nvflare",
+        "ha_mode": "false",
         "org_name": "",
         "type": "server",
         "cln_uid": "",
@@ -130,14 +114,13 @@ def gen_server(key, first_server=True):
             config=config,
         )
         utils._write_pki(type="server", dest_dir=dest_dir, cert_pair=cert_pair, root_cert=project.root_cert)
-        if not project.ha_mode:
-            for csp in supported_csps:
-                utils._write(
-                    os.path.join(dest_dir, get_csp_start_script_name(csp)),
-                    tplt.get_start_sh(csp=csp, type="server", entity=entity),
-                    "t",
-                    exe=True,
-                )
+        for csp in supported_csps:
+            utils._write(
+                os.path.join(dest_dir, get_csp_start_script_name(csp)),
+                tplt.get_start_sh(csp=csp, type="server", entity=entity),
+                "t",
+                exe=True,
+            )
         signatures = utils.sign_all(dest_dir, deserialize_ca_key(project.root_key))
         json.dump(signatures, open(os.path.join(dest_dir, "signature.json"), "wt"))
 
@@ -185,17 +168,8 @@ def gen_client(key, id):
         escaped_value = value.replace("'", "\\'")
         replacement_dict[k] = escaped_value
 
-    if project.ha_mode:
-        overseer_agent = {"path": "nvflare.ha.overseer_agent.HttpOverseerAgent"}
-        overseer_agent["args"] = {
-            "role": "client",
-            "overseer_end_point": f"https://{project.overseer}:8443/api/v1",
-            "project": project.short_name,
-            "name": entity.name,
-        }
-    else:
-        overseer_agent = {"path": "nvflare.ha.dummy_overseer_agent.DummyOverseerAgent"}
-        overseer_agent["args"] = {"sp_end_point": f"{project.server1}:8002:8003"}
+    overseer_agent = {"path": "nvflare.ha.dummy_overseer_agent.DummyOverseerAgent"}
+    overseer_agent["args"] = {"sp_end_point": f"{client.target_server}:8002:8003"}
     config["overseer_agent"] = overseer_agent
 
     tplt = tplt_utils.Template(template)
@@ -259,17 +233,8 @@ def gen_user(key, id):
     config = json.loads(template["fed_admin"])
     replacement_dict = {"admin_name": entity.name, "cn": server_name, "admin_port": "8003", "docker_image": ""}
 
-    if project.ha_mode:
-        overseer_agent = {"path": "nvflare.ha.overseer_agent.HttpOverseerAgent"}
-        overseer_agent["args"] = {
-            "role": "admin",
-            "overseer_end_point": f"https://{project.overseer}:8443/api/v1",
-            "project": project.short_name,
-            "name": entity.name,
-        }
-    else:
-        overseer_agent = {"path": "nvflare.ha.dummy_overseer_agent.DummyOverseerAgent"}
-        overseer_agent["args"] = {"sp_end_point": f"{project.server1}:8002:8003"}
+    overseer_agent = {"path": "nvflare.ha.dummy_overseer_agent.DummyOverseerAgent"}
+    overseer_agent["args"] = {"sp_end_point": f"{entity.target_server}:8002:8003"}
     config["admin"].update({"overseer_agent": overseer_agent})
 
     with tempfile.TemporaryDirectory() as tmp_dir:

@@ -140,8 +140,8 @@ class Store(object):
         return fileobj, filename
 
     @classmethod
-    def get_server_blob(cls, key, first_server=True):
-        fileobj, filename = gen_server(key, first_server)
+    def get_server_blob(cls, key):
+        fileobj, filename = gen_server(key)
         return fileobj, filename
 
     @classmethod

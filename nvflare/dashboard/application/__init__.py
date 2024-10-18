@@ -17,7 +17,7 @@ import os
 from flask import Flask
 from flask_jwt_extended import JWTManager
 from flask_sqlalchemy import SQLAlchemy
-
+from flask_cors import CORS, cross_origin
 db = SQLAlchemy()
 jwt = JWTManager()
 
@@ -45,4 +45,6 @@ def init_app():
             Store.seed_user(email, pwd)
     with open(os.path.join(web_root, ".db_init_done"), "ab") as f:
         f.write(bytes())
+    cors = CORS(app)
+    app.config['CORS_HEADERS'] = 'Content-Type'
     return app
