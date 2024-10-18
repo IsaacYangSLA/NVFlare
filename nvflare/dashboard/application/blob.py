@@ -223,7 +223,6 @@ def gen_client(key, id):
 
 def gen_user(key, id):
     project = Project.query.first()
-    server_name = project.server1
     user = User.query.get(id)
     entity = Entity(user.email, user.organization.name, user.role.name)
     issuer = Entity(project.short_name)
@@ -231,10 +230,10 @@ def gen_user(key, id):
     cert_pair = make_cert(entity, signing_cert_pair)
 
     config = json.loads(template["fed_admin"])
-    replacement_dict = {"admin_name": entity.name, "cn": server_name, "admin_port": "8003", "docker_image": ""}
+    replacement_dict = {"admin_name": entity.name, "cn": user.target_server, "admin_port": "8003", "docker_image": ""}
 
     overseer_agent = {"path": "nvflare.ha.dummy_overseer_agent.DummyOverseerAgent"}
-    overseer_agent["args"] = {"sp_end_point": f"{entity.target_server}:8002:8003"}
+    overseer_agent["args"] = {"sp_end_point": f"{user.target_server}:8002:8003"}
     config["admin"].update({"overseer_agent": overseer_agent})
 
     with tempfile.TemporaryDirectory() as tmp_dir:
