@@ -1,7 +1,7 @@
 openapi: "3.0.0"
 info:
   description: "This is the api definition for nvflare user/client registration, state update and other management functions."
-  version: 0.0.1
+  version: 0.1.0
   title: FLARE Participant Registration and Management
   contact:
     email: "nvflare@nvidia.com"
@@ -108,51 +108,12 @@ paths:
                     type: "string"
                   project:
                     $ref: '#/components/schemas/Project'
-  /overseer/blob:
-    post:
-      security:
-      - bearerAuth: []
-      summary: "Get overseer startup kit"
-      operationId: "get_overseer_blob"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: "object"
-              properties:
-                pin:
-                  type: string
-      responses:
-        "200":
-          description: API accepted
-          content:
-            application/zip:
-              schema:
-                type: "string"
-                format: "binary"
-        "403":
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                type: "object"
-                properties:
-                  status:
-                    type: "string"
-  /servers/{id}/blob:
+  /server/blob:
     post:
       security:
       - bearerAuth: []
       summary: "Get server startup kit"
       operationId: "get_server_blob_by_id"
-      parameters:
-        - name: "id"
-          in: "path"
-          description: "The id that needs to be fetched."
-          required: true
-          schema:
-            type: "string"
       requestBody:
         required: true
         content:
@@ -594,9 +555,9 @@ components:
       type: "object"
       properties:
         frozen:
-          type: boolean
+          type: "boolean"
         public:
-          type: boolean
+          type: "boolean"
         short_name:
           type: "string"
           example: "EXAM"
@@ -604,17 +565,14 @@ components:
           type: "string"
           example: "International project to detect COVID on medical images with Federated Learning"
         description:
-          type: string
+          type: "string"
         app_location:
-          type: string
-        overseer:
           type: "string"
-        server1:
+        server:
           type: "string"
-        server2:
+        server_extras:
           type: "string"
-        ha_mode:
-          type: "boolean"
+          format: "base64"
         starting_date:
           type: "string"
         end_date:
@@ -638,7 +596,9 @@ components:
           type: "integer"
           format: "int32"
           description: "User approval state"
-
+        extras:
+          type: "string"
+          format: "base64"
     RqsUser:
       allOf:
       - $ref: '#/components/schemas/BaseUser'
@@ -668,6 +628,8 @@ components:
         organization:
           type: "string"
           example: "nvidia"
+        target_server:
+          type: "string"
         capacity:
           type: "object"
           properties:
@@ -680,7 +642,9 @@ components:
         approval_state:
           type: "integer"
           format: "int64"
-
+        extras:
+          type: "string"
+          format: "base64"
     RspClient:
       allOf:
         - $ref: '#/components/schemas/BaseClient'
