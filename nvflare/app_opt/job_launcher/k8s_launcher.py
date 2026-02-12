@@ -13,8 +13,10 @@
 # limitations under the License.
 import logging
 import time
+import pprint
 from abc import abstractmethod
 from enum import Enum
+import subprocess
 
 from kubernetes import config
 from kubernetes.client import Configuration
@@ -71,7 +73,10 @@ class K8sJobHandle(JobHandleSpec):
                 "restartPolicy": "OnFailure",
             },
         }
-        self.volume_list = [{"name": None, "hostPath": {"path": None, "type": "Directory"}}]
+        self.volume_list = [{"name": "nvflws", "persistentVolumeClaim": {"claimName": "nvflws"}},
+                            {"name": "nvfldata1", "persistentVolumeClaim": {"claimName": "nvfldata1"}},
+                            {"name": "nvfletc", "persistentVolumeClaim": {"claimName": "nvfletc"}}]
+
         self.container_list = [
             {
                 "image": None,
@@ -95,25 +100,22 @@ class K8sJobHandle(JobHandleSpec):
             "-scheme": None,
             "-s": None,
         }
-        self.container_volume_mount_list = [
-            {
-                "name": None,
-                "mountPath": None,
-            }
+        self.container_volume_mount_list = [ \
+            {"name": "nvflws", "mountPath": "/var/tmp/nvflare/workspace"},
+            {"name": "nvfldata1", "mountPath": "/var/tmp/nvflare/data1"},
+            {"name": "nvfletc", "mountPath": "/var/tmp/nvflare/etc"}
         ]
         self._make_manifest(job_config)
 
     def _make_manifest(self, job_config):
-        self.container_volume_mount_list = job_config.get(
-            "volume_mount_list", [{"name": "workspace-nvflare", "mountPath": "/workspace/nvflare"}]
-        )
+        self.container_volume_mount_list.extend(job_config.get("volume_mount_list", []))
         set_list = job_config.get("set_list")
         if set_list is None:
             self.container_args_module_args_sets = list()
         else:
             self.container_args_module_args_sets = ["--set"] + set_list
-        self.container_args_module_args_dict = job_config.get(
-            "module_args",
+        if job_config.get("module_args") is None:
+            self.container_args_module_args_dict = \
             {
                 "-m": None,
                 "-w": None,
@@ -125,16 +127,16 @@ class K8sJobHandle(JobHandleSpec):
                 "-g": None,
                 "-scheme": None,
                 "-s": None,
-            },
-        )
+            }
+        else:
+            self.container_args_module_args_dict = job_config.get("module_args")
         self.container_args_module_args_dict_as_list = list()
+        self.container_args_module_args_dict['-m'] = '/var/tmp/nvflare/workspace/site-1'
+        self.container_args_module_args_dict['-w'] = '/var/tmp/nvflare/workspace/site-1/startup'
         for k, v in self.container_args_module_args_dict.items():
             self.container_args_module_args_dict_as_list.append(k)
             self.container_args_module_args_dict_as_list.append(v)
-        self.volume_list = job_config.get(
-            "volume_list", [{"name": None, "hostPath": {"path": None, "type": "Directory"}}]
-        )
-
+        self.volume_list.extend(job_config.get("volume_list",[]))
         self.pod_manifest["metadata"]["name"] = job_config.get("name")
         self.pod_manifest["spec"]["containers"] = self.container_list
         self.pod_manifest["spec"]["volumes"] = self.volume_list
@@ -233,15 +235,26 @@ class K8sJobLauncher(JobLauncherSpec):
             "image": job_image,
             "container_name": f"container-{job_id}",
             "command": job_cmd,
-            "volume_mount_list": [{"name": self.workspace, "mountPath": self.mount_path}],
-            "volume_list": [{"name": self.workspace, "hostPath": {"path": self.root_hostpath, "type": "Directory"}}],
+            "volume_mount_list": [],
+            "volume_list": [],
             "module_args": self.get_module_args(job_id, fl_ctx),
             "set_list": args.set,
         }
 
-        self.logger.info(f"launch job with k8s_launcher. Job_id:{job_id}")
+        self.logger.info(f"launch job with k8s_launcher. {job_config=}")
 
         job_handle = K8sJobHandle(job_id, self.core_v1, job_config, namespace=self.namespace, timeout=self.timeout)
+        pod_manifest = job_handle.get_manifest()
+        import yaml
+        with open("job_pod.yaml", "wt") as f:
+            yaml.safe_dump(pod_manifest, f, sort_keys=False)
+
+        import shlex
+        cl = f"/snap/bin/microk8s kubectl cp {job_id} dump-pvc:/var/tmp/nvfl/ws/site-1/{job_id}"
+        cwd="/home/isaacy/mnt/wksp/dev/workspace/example_project/prod_00/site-1"
+        result = subprocess.Popen(shlex.split(cl), cwd=cwd)
+        print(result)
+
         try:
             self.core_v1.create_namespaced_pod(body=job_handle.get_manifest(), namespace=self.namespace)
             if job_handle.enter_states([JobState.RUNNING], timeout=self.timeout):
@@ -249,7 +262,8 @@ class K8sJobLauncher(JobLauncherSpec):
             else:
                 job_handle.terminate()
                 return None
-        except ApiException:
+        except ApiException as e:
+            s = str(e)
             job_handle.terminate()
             return None
 
