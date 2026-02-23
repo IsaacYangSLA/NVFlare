@@ -199,6 +199,8 @@ class K8sJobLauncher(JobLauncherSpec):
         namespace="default",
     ):
         super().__init__()
+        self.logger = logging.getLogger(self.__class__.__name__)
+        print(f"Initializing", flush=True)
 
         self.root_hostpath = root_hostpath
         self.workspace = workspace
@@ -206,28 +208,35 @@ class K8sJobLauncher(JobLauncherSpec):
         self.timeout = timeout
 
         config.load_kube_config(config_file_path)
+        print(f"config", flush=True)
         try:
             c = Configuration().get_default_copy()
+            print(f"{c=}", flush=True)
         except AttributeError:
             c = Configuration()
+            print(f"{c=}", flush=True)
             c.assert_hostname = False
         Configuration.set_default(c)
+        print(f"set_default done", flush=True)
         self.core_v1 = core_v1_api.CoreV1Api()
         self.namespace = namespace
-
         self.job_handle = None
-        self.logger = logging.getLogger(self.__class__.__name__)
+        print(f"Initialized", flush=True)
 
     def launch_job(self, job_meta: dict, fl_ctx: FLContext) -> JobHandleSpec:
-
+        print(f"launch_job", flush=True)
         job_id = job_meta.get(JobConstants.JOB_ID)
+        print(f"{job_id=}", flush=True)
         args = fl_ctx.get_prop(FLContextKey.ARGS)
+        print(f"{args=}", flush=True)
         job_image = extract_job_image(job_meta, fl_ctx.get_identity_name())
-        self.logger.info(f"launch job use image: {job_image}")
+        print(f"{job_image=}", flush=True)
+        print(f"launch job use image: {job_image}", flush=True)
 
         job_args = fl_ctx.get_prop(FLContextKey.JOB_PROCESS_ARGS)
         if not job_args:
             raise RuntimeError(f"missing {FLContextKey.JOB_PROCESS_ARGS} in FLContext")
+        print(f"{job_args=}", flush=True)
 
         _, job_cmd = job_args[JobProcessArgs.EXE_MODULE]
         job_config = {
@@ -241,20 +250,14 @@ class K8sJobLauncher(JobLauncherSpec):
             "set_list": args.set,
         }
 
-        self.logger.info(f"launch job with k8s_launcher. {job_config=}")
+        print(f"launch job with k8s_launcher. {job_config=}", flush=True)
 
         job_handle = K8sJobHandle(job_id, self.core_v1, job_config, namespace=self.namespace, timeout=self.timeout)
         pod_manifest = job_handle.get_manifest()
         import yaml
-        with open("job_pod.yaml", "wt") as f:
+        with open("/var/tmp/job_pod.yaml", "wt") as f:
             yaml.safe_dump(pod_manifest, f, sort_keys=False)
-
-        import shlex
-        cl = f"/snap/bin/microk8s kubectl cp {job_id} dump-pvc:/var/tmp/nvfl/ws/site-1/{job_id}"
-        cwd="/home/isaacy/mnt/wksp/dev/workspace/example_project/prod_00/site-1"
-        result = subprocess.Popen(shlex.split(cl), cwd=cwd)
-        print(result)
-
+        print("job_pod.yaml written", flush=True)
         try:
             self.core_v1.create_namespaced_pod(body=job_handle.get_manifest(), namespace=self.namespace)
             if job_handle.enter_states([JobState.RUNNING], timeout=self.timeout):
@@ -269,8 +272,10 @@ class K8sJobLauncher(JobLauncherSpec):
 
     def handle_event(self, event_type: str, fl_ctx: FLContext):
         if event_type == EventType.BEFORE_JOB_LAUNCH:
+            print(f"Receive EVENT", flush=True)
             job_meta = fl_ctx.get_prop(FLContextKey.JOB_META)
             job_image = extract_job_image(job_meta, fl_ctx.get_identity_name())
+            print(f"{job_image=}", flush=True)
             if job_image:
                 add_launcher(self, fl_ctx)
 
