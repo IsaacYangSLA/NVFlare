@@ -53,6 +53,30 @@ JOB_RETURN_CODE_MAPPING = {
     JobState.UNKNOWN: JobReturnCode.UNKNOWN,
 }
 
+DEFAULT_CONTAINER_ARGS_MODULE_ARGS_DICT = {
+    "-m": None,
+    "-w": None,
+    "-t": None,
+    "-d": None,
+    "-n": None,
+    "-c": None,
+    "-p": None,
+    "-g": None,
+    "-scheme": None,
+    "-s": None,
+}
+
+class PV_NAME(Enum):
+    WORKSPACE = "nvflws"
+    DATA = "nvfldata"
+    ETC = "nvfletc"
+
+
+VOLUME_MOUNT_LIST = [ \
+    {"name": PV_NAME.WORKSPACE.value, "mountPath": "/var/tmp/nvflare/workspace"},
+    {"name": PV_NAME.DATA.value, "mountPath": "/var/tmp/nvflare/data"},
+    {"name": PV_NAME.ETC.value, "mountPath": "/var/tmp/nvflare/etc"}
+]
 
 class K8sJobHandle(JobHandleSpec):
     def __init__(self, job_id: str, api_instance: core_v1_api, job_config: dict, namespace="default", timeout=None):
@@ -85,18 +109,6 @@ class K8sJobHandle(JobHandleSpec):
             }
         ]
         self.container_args_python_args_list = ["-u", "-m", job_config.get("command")]
-        self.container_args_module_args_dict = {
-            "-m": None,
-            "-w": None,
-            "-t": None,
-            "-d": None,
-            "-n": None,
-            "-c": None,
-            "-p": None,
-            "-g": None,
-            "-scheme": None,
-            "-s": None,
-        }
         self.container_volume_mount_list = []
         self._make_manifest(job_config)
 
@@ -108,19 +120,7 @@ class K8sJobHandle(JobHandleSpec):
         else:
             self.container_args_module_args_sets = ["--set"] + set_list
         if job_config.get("module_args") is None:
-            self.container_args_module_args_dict = \
-            {
-                "-m": None,
-                "-w": None,
-                "-t": None,
-                "-d": None,
-                "-n": None,
-                "-c": None,
-                "-p": None,
-                "-g": None,
-                "-scheme": None,
-                "-s": None,
-            }
+            self.container_args_module_args_dict = DEFAULT_CONTAINER_ARGS_MODULE_ARGS_DICT
         else:
             self.container_args_module_args_dict = job_config.get("module_args")
         self.container_args_module_args_dict_as_list = list()
@@ -132,7 +132,7 @@ class K8sJobHandle(JobHandleSpec):
         self.pod_manifest["spec"]["containers"] = self.container_list
         self.pod_manifest["spec"]["volumes"] = self.volume_list
 
-        self.container_list[0]["image"] = job_config.get("image", "nvflare/nvflare:2.5.0")
+        self.container_list[0]["image"] = job_config.get("image", "nvflare/nvflare:2.8.0")
         self.container_list[0]["name"] = job_config.get("container_name", "nvflare_job")
         self.container_list[0]["args"] = (
             self.container_args_python_args_list
@@ -230,15 +230,11 @@ class K8sJobLauncher(JobLauncherSpec):
             "image": job_image,
             "container_name": f"container-{job_id}",
             "command": job_cmd,
-            "volume_mount_list": [ \
-                {"name": "nvflws", "mountPath": "/var/tmp/nvflare/workspace"},
-                {"name": "nvfldata1", "mountPath": "/var/tmp/nvflare/data"},
-                {"name": "nvfletc", "mountPath": "/var/tmp/nvflare/etc"}
-            ],
+            "volume_mount_list": VOLUME_MOUNT_LIST,
             "volume_list": [
-                {"name": "nvflws", "persistentVolumeClaim": {"claimName": self.workspace_pvc}},
-                {"name": "nvfldata1", "persistentVolumeClaim": {"claimName": self.data_pvc}},
-                {"name": "nvfletc", "persistentVolumeClaim": {"claimName": self.etc_pvc}}
+                {"name": PV_NAME.WORKSPACE.value, "persistentVolumeClaim": {"claimName": self.workspace_pvc}},
+                {"name": PV_NAME.DATA.value, "persistentVolumeClaim": {"claimName": self.data_pvc}},
+                {"name": PV_NAME.ETC.value, "persistentVolumeClaim": {"claimName": self.etc_pvc}}
             ],
             "module_args": self.get_module_args(job_id, fl_ctx),
             "set_list": args.set,
