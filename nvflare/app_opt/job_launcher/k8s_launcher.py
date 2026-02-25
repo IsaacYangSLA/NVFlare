@@ -202,7 +202,7 @@ class K8sJobLauncher(JobLauncherSpec):
         # data_pvc_dict will be pvc: mountPath
         # currently, support one pvc and always mount to /var/tmp/nvflare/data
         # ie, ignore the mountPath in data_pvc_dict
-        self.data_pvc = data_pvc_dict.keys()[0]
+        self.data_pvc = list(data_pvc_dict.keys())[0]
 
         config.load_kube_config(config_file_path)
         try:
@@ -216,19 +216,13 @@ class K8sJobLauncher(JobLauncherSpec):
 
 
     def launch_job(self, job_meta: dict, fl_ctx: FLContext) -> JobHandleSpec:
-        print(f"launch_job", flush=True)
         job_id = job_meta.get(JobConstants.JOB_ID)
-        print(f"{job_id=}", flush=True)
         args = fl_ctx.get_prop(FLContextKey.ARGS)
-        print(f"{args=}", flush=True)
         job_image = extract_job_image(job_meta, fl_ctx.get_identity_name())
-        print(f"{job_image=}", flush=True)
-        print(f"launch job use image: {job_image}", flush=True)
 
         job_args = fl_ctx.get_prop(FLContextKey.JOB_PROCESS_ARGS)
         if not job_args:
             raise RuntimeError(f"missing {FLContextKey.JOB_PROCESS_ARGS} in FLContext")
-        print(f"{job_args=}", flush=True)
 
         _, job_cmd = job_args[JobProcessArgs.EXE_MODULE]
         job_config = {
@@ -250,11 +244,9 @@ class K8sJobLauncher(JobLauncherSpec):
             "set_list": args.set,
         }
 
-        print(f"launch job with k8s_launcher. {job_config=}", flush=True)
-
         job_handle = K8sJobHandle(job_id, self.core_v1, job_config, namespace=self.namespace, timeout=self.timeout)
         pod_manifest = job_handle.get_manifest()
-        print(f"{pod_manifest=}", flush=True)
+        self.logger.debug(f"launch job with k8s_launcher. {pod_manifest=}")
         try:
             self.core_v1.create_namespaced_pod(body=pod_manifest, namespace=self.namespace)
             if job_handle.enter_states([JobState.RUNNING], timeout=self.timeout):
@@ -263,16 +255,13 @@ class K8sJobLauncher(JobLauncherSpec):
                 job_handle.terminate()
                 return None
         except ApiException as e:
-            s = str(e)
             job_handle.terminate()
             return None
 
     def handle_event(self, event_type: str, fl_ctx: FLContext):
         if event_type == EventType.BEFORE_JOB_LAUNCH:
-            print(f"Receive EVENT", flush=True)
             job_meta = fl_ctx.get_prop(FLContextKey.JOB_META)
             job_image = extract_job_image(job_meta, fl_ctx.get_identity_name())
-            print(f"{job_image=}", flush=True)
             if job_image:
                 add_launcher(self, fl_ctx)
 
