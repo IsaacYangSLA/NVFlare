@@ -1,0 +1,45 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: site-1
+  labels:
+    app.kubernetes.io/name: site-1
+spec:
+  restartPolicy: Never
+  volumes:
+    - name: nvfletc
+      persistentVolumeClaim:
+        claimName: nvfletc
+    - name: nvflws
+      persistentVolumeClaim:
+        claimName: nvflws
+  hostAliases:
+    - ip: "172.31.62.58"
+      hostnames:
+        - "server1"
+  containers:
+    - name: site-1
+      imagePullPolicy: Always
+      image: localhost:32000/nvflare:3.5.10
+      ports:
+        - containerPort: 18002
+      args:
+        - -u
+        - -m
+        - nvflare.private.fed.app.client.client_train
+        - -m
+        - /var/tmp/nvflare/workspace
+        - -s
+        - fed_client.json
+        - --set
+        - secure_train=true
+        - config_folder=config
+        - org=nvidia
+        - uid=site-1
+      command:
+        - /usr/local/bin/python3
+      volumeMounts:
+        - name: nvfletc
+          mountPath: /var/tmp/nvflare/etc
+        - name: nvflws
+          mountPath: /var/tmp/nvflare/workspace 

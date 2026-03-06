@@ -1,0 +1,10 @@
+apiVersion: v2
+name: nvflare-client
+description: NVFlare federated learning client pod and service
+type: application
+version: 0.1.0
+appVersion: "3.5.10"
+keywords:
+  - nvflare
+  - federated-learning
+maintainers: []

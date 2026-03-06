@@ -1,0 +1,51 @@
+# NVFlare client - generated from client.yml and create_svc.yml
+
+# Client/site name (used for pod name, labels, and service selector)
+name: site-1
+
+# Container image
+image:
+  repository: localhost:32000/nvflare
+  tag: "3.5.10"
+  pullPolicy: Always
+
+# Persistent volume claims for etc and workspace
+persistence:
+  etc:
+    claimName: nvfletc
+    friendlyName: nvfletc
+    mountPath: /var/tmp/nvflare/etc
+  workspace:
+    claimName: nvflws
+    friendlyName: nvflws
+    mountPath: /var/tmp/nvflare/workspace
+# Host aliases (e.g. server hostname resolution)
+# Example:
+hostAliases:
+   - ip: "172.31.62.58"
+     hostnames:
+       - "server1"
+
+# Client container port
+port: 18002
+
+# Client command and args (NVFlare client entrypoint)
+command:
+  - /usr/local/bin/python3
+# uid= is set from .Values.name in the template
+args:
+  - -u
+  - -m
+  - nvflare.private.fed.app.client.client_train
+  - -m
+  - /var/tmp/nvflare/workspace
+  - -s
+  - fed_client.json
+  - --set
+  - secure_train=true
+  - config_folder=config
+  - org=nvidia
+  - uid=site-1
+
+# Pod restart policy
+restartPolicy: Never
