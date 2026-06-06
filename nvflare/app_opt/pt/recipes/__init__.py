@@ -12,10 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from .cross_site_eval import PTCrossSiteEvalRecipe
 from .cyclic import CyclicRecipe
 from .fedavg import FedAvgRecipe
 from .fedeval import FedEvalRecipe
 from .fedopt import FedOptRecipe
+from .global_model_eval import GlobalModelEvalRecipe
 from .scaffold import ScaffoldRecipe
 
 
@@ -29,6 +31,10 @@ def __getattr__(name):
         from .swarm import SwarmLearningRecipe
 
         return SwarmLearningRecipe
+    if name == "CCWFCyclicRecipe":
+        from .ccwf_cyclic import CCWFCyclicRecipe
+
+        return CCWFCyclicRecipe
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
@@ -40,4 +46,7 @@ __all__ = [
     "FedAvgRecipeWithHE",
     "FedEvalRecipe",
     "SwarmLearningRecipe",
+    "CCWFCyclicRecipe",
+    "PTCrossSiteEvalRecipe",
+    "GlobalModelEvalRecipe",
 ]
