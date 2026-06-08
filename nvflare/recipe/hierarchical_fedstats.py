@@ -82,6 +82,8 @@ class HierarchicalFedStatsRecipe(Recipe):
         max_noise_level: float = 0.3,
         max_bins_percent: float = 10,
     ):
+        if not sites:
+            raise ValueError("sites must be a non-empty list of client names")
         if not isinstance(hierarchy_config, str) or not hierarchy_config:
             raise ValueError("hierarchy_config must be a non-empty path to a JSON file")
         if not os.path.isfile(hierarchy_config):
@@ -108,4 +110,4 @@ class HierarchicalFedStatsRecipe(Recipe):
 
         job.setup_clients(sites)
 
-        Recipe.__init__(self, job)
+        super().__init__(job)

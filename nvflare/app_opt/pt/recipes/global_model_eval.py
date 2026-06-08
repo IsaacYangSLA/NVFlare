@@ -25,12 +25,7 @@ from nvflare.client.config import ExchangeFormat
 from nvflare.job_config.api import FedJob
 from nvflare.job_config.script_runner import FrameworkType, ScriptRunner
 from nvflare.recipe.spec import Recipe
-from nvflare.recipe.utils import (
-    extract_persistor_id,
-    prepare_initial_ckpt,
-    recipe_model_to_job_model,
-    validate_ckpt,
-)
+from nvflare.recipe.utils import extract_persistor_id, prepare_initial_ckpt, recipe_model_to_job_model, validate_ckpt
 
 
 class _GlobalModelEvalValidator(BaseModel):
@@ -70,7 +65,9 @@ class GlobalModelEvalRecipe(Recipe):
         name: Job name. Defaults to ``"global_model_eval"``.
         model: ``nn.Module`` instance or
             ``{"class_path": "module.ClassName", "args": {...}}`` config.
-        eval_ckpt: Absolute path to the checkpoint to evaluate.
+        eval_ckpt: Path to the checkpoint to evaluate. Relative paths must
+            exist locally and are bundled into the job; absolute paths are
+            resolved server-side at runtime.
         min_clients: Minimum number of clients required. Defaults to 2.
         eval_script: Path to the client eval script (handles the ``validate``
             task via the Client API ``flare.is_evaluate()`` pattern).
@@ -126,7 +123,7 @@ class GlobalModelEvalRecipe(Recipe):
             job.comp_ids.update(result)
         persistor_id = extract_persistor_id(result)
         if not persistor_id:
-            raise RuntimeError("Failed to register PT persistor for global model evaluation")
+            raise ValueError("Failed to register PT persistor for global model evaluation")
 
         locator_id = job.to_server(PTFileModelLocator(pt_persistor_id=persistor_id), id="model_locator")
 

@@ -16,12 +16,7 @@ from typing import Any, Dict, Optional, Union
 
 from pydantic import BaseModel, field_validator
 
-from nvflare.app_common.ccwf.ccwf_job import (
-    CCWFJob,
-    CrossSiteEvalConfig,
-    CyclicClientConfig,
-    CyclicServerConfig,
-)
+from nvflare.app_common.ccwf.ccwf_job import CCWFJob, CrossSiteEvalConfig, CyclicClientConfig, CyclicServerConfig
 from nvflare.app_common.ccwf.comps.simple_model_shareable_generator import SimpleModelShareableGenerator
 from nvflare.app_opt.pt.file_model_persistor import PTFileModelPersistor
 from nvflare.job_config.script_runner import ScriptRunner
@@ -146,4 +141,4 @@ class CCWFCyclicRecipe(Recipe):
         job.add_cyclic(server_config=server_config, client_config=client_config, cse_config=cse_config)
 
         self.name = name
-        Recipe.__init__(self, job)
+        super().__init__(job)

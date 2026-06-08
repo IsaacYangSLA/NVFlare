@@ -55,6 +55,13 @@ python cyclic_cc_script_runner_cifar10.py
 ```
 The output will be saved to `/tmp/nvflare/jobs/workdir/pt_cyclic` 
 
+### 4a. [Cyclic weight transfer using CCWFCyclicRecipe](./cyclic_cc_recipe_cifar10.py)
+Recipe-based equivalent of the above. `CCWFCyclicRecipe` wires `CyclicServerController`, `CyclicClientController`, `PTFileModelPersistor`, and `SimpleModelShareableGenerator` automatically. See the [tutorial notebook](../../tutorials/self-paced-training/part-4_advanced_federated_learning/chapter-7_algorithms_and_workflows/07.2_algorithms/07.2.2_cyclic/cyclic_cc_recipe_tutorial.ipynb) for a full walkthrough.
+```commandline
+python cyclic_cc_recipe_cifar10.py
+```
+The output will be saved to `/tmp/nvflare/jobs/workdir/pt_cyclic_cc_recipe`
+
 ### 5. [Federated averaging with cross-site validation](./fedavg_script_runner_xsite_val_cifar10.py)
 Implementation of [FedAvg](https://arxiv.org/abs/1602.05629) using the [Client API](https://nvflare.readthedocs.io/en/main/programming_guide/execution_api_type/client_api.html),
 followed by [cross site validation](https://nvflare.readthedocs.io/en/main/programming_guide/controllers/cross_site_model_evaluation.html)

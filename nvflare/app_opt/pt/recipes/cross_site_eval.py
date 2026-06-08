@@ -25,12 +25,7 @@ from nvflare.client.config import ExchangeFormat
 from nvflare.job_config.api import FedJob
 from nvflare.job_config.script_runner import FrameworkType, ScriptRunner
 from nvflare.recipe.spec import Recipe
-from nvflare.recipe.utils import (
-    extract_persistor_id,
-    prepare_initial_ckpt,
-    recipe_model_to_job_model,
-    validate_ckpt,
-)
+from nvflare.recipe.utils import extract_persistor_id, prepare_initial_ckpt, recipe_model_to_job_model, validate_ckpt
 
 
 # Internal validator
@@ -82,9 +77,10 @@ class PTCrossSiteEvalRecipe(Recipe):
             ``{"class_path": "module.ClassName", "args": {...}}``. The model
             architecture is required because the checkpoint only stores the
             ``state_dict``.
-        eval_ckpt: Absolute path to a pre-trained checkpoint file (``.pt``,
-            ``.pth``). The path is interpreted server-side; it does not need
-            to exist on the machine building the job.
+        eval_ckpt: Path to a pre-trained checkpoint file (``.pt``, ``.pth``).
+            Relative paths must exist locally — they are bundled into the job's
+            custom directory. Absolute paths are interpreted server-side and do
+            not need to exist on the machine building the job.
         min_clients: Minimum number of clients required to start the job.
             Defaults to 2.
         eval_script: Path to the client evaluation script (handles the
@@ -161,7 +157,7 @@ class PTCrossSiteEvalRecipe(Recipe):
             job.comp_ids.update(result)
         persistor_id = extract_persistor_id(result)
         if not persistor_id:
-            raise RuntimeError("Failed to register PT persistor for cross-site evaluation")
+            raise ValueError("Failed to register PT persistor for cross-site evaluation")
 
         locator_id = job.to_server(PTFileModelLocator(pt_persistor_id=persistor_id), id="model_locator")
 

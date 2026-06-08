@@ -25,11 +25,10 @@ The client script (src/cifar10_fl_partitioned.py) already branches on
 cross-site eval workflow expects.
 """
 
-from src.net import Net
-
 # Reuse the data-splitting helper from the non-recipe sibling so the two examples
 # operate on identical partitions.
 from fedavg_script_runner_xsite_val_cifar10 import create_data_splits
+from src.net import Net
 
 from nvflare.app_opt.pt.recipes.fedavg import FedAvgRecipe
 from nvflare.recipe import SimEnv, add_experiment_tracking

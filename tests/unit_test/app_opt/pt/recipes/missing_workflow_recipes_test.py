@@ -14,8 +14,6 @@
 
 """Smoke tests for newly added recipes covering workflows that previously had none."""
 
-import os
-
 import pytest
 import torch
 import torch.nn as nn
@@ -88,7 +86,7 @@ class TestPTCrossSiteEvalRecipe:
         """Relative ckpt paths must exist locally so they can be bundled into the job."""
         from nvflare.app_opt.pt.recipes.cross_site_eval import PTCrossSiteEvalRecipe
 
-        with pytest.raises(Exception):
+        with pytest.raises(ValueError):
             PTCrossSiteEvalRecipe(
                 model=TinyNet(),
                 eval_ckpt="missing_relative_ckpt.pt",

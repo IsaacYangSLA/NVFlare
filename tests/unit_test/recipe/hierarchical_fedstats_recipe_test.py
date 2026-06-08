@@ -36,9 +36,7 @@ class _StubGenerator(Statistics):
 @pytest.fixture
 def hierarchy_file(tmp_path):
     path = tmp_path / "hierarchy.json"
-    path.write_text(
-        json.dumps({"name": "global", "children": [{"name": "r1", "children": ["site-1", "site-2"]}]})
-    )
+    path.write_text(json.dumps({"name": "global", "children": [{"name": "r1", "children": ["site-1", "site-2"]}]}))
     return str(path)
 
 
