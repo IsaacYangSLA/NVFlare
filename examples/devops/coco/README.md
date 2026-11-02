@@ -1,5 +1,11 @@
 # NVFlare on an existing CoCo-ready cluster
 
+For Fortanix CCM/DSM integration, start with the
+[Fortanix implementation guide](fortanix/README.md). It explains NVFlare's
+provisioning and peer-verification interfaces, the external build-runner
+contract, and the remaining live qualification gates. The workflow below uses
+Trustee.
+
 **Complete and verify these prerequisites before starting the four-step workflow:**
 
 This optional [beginner prerequisite appendix](PREREQUISITES.md) helps beginners

@@ -377,7 +377,9 @@ def decode_initdata(encoded):
     return data
 
 
-def validate_workload_pod(pod, expected_context, command, *, runtime_class="kata-qemu-nvidia-gpu-snp"):
+def validate_workload_pod(
+    pod, expected_context, command, *, runtime_class="kata-qemu-nvidia-gpu-snp", expected_gpu=None
+):
     # Provisioning callers supply the configured runtime. The launch helper
     # validates the runtime selected in the received Pod without an independent pin.
     runtime_gpu = {
@@ -386,7 +388,22 @@ def validate_workload_pod(pod, expected_context, command, *, runtime_class="kata
         "kata-qemu-nvidia-gpu-tdx": True,
         "kata-qemu-tdx": False,
     }
-    require(isinstance(runtime_class, str) and runtime_class in runtime_gpu, "unsupported approved runtime")
+    if expected_gpu is None:
+        require(isinstance(runtime_class, str) and runtime_class in runtime_gpu, "unsupported approved runtime")
+        gpu = runtime_gpu[runtime_class]
+    else:
+        # Only trusted provisioning callers may supply an independently pinned
+        # vendor runtime and its expected allocation. Launch-side callers keep
+        # the fixed runtime allowlist above.
+        require(type(expected_gpu) is bool, "expected_gpu must be a boolean")
+        require(
+            isinstance(runtime_class, str)
+            and len(runtime_class) <= 253
+            and re.fullmatch(r"[a-z0-9](?:[-a-z0-9]*[a-z0-9])?", runtime_class),
+            "invalid approved runtime",
+        )
+        require(runtime_class not in runtime_gpu or runtime_gpu[runtime_class] == expected_gpu, "runtime GPU mismatch")
+        gpu = expected_gpu
     require(isinstance(pod, dict) and set(pod) <= {"apiVersion", "kind", "metadata", "spec"}, "unexpected Pod fields")
     require(pod.get("apiVersion") == "v1" and pod.get("kind") == "Pod", "expected a v1 Pod")
     spec = pod.get("spec", {})
@@ -433,7 +450,7 @@ def validate_workload_pod(pod, expected_context, command, *, runtime_class="kata
         "unapproved resources",
     )
     resources = normalize_resources(resources)
-    expected_resources = {"nvidia.com/pgpu": "1"} if runtime_gpu[runtime_class] else {}
+    expected_resources = {"nvidia.com/pgpu": "1"} if gpu else {}
     require(
         resources.get("limits", {}) == expected_resources and resources.get("requests", {}) == expected_resources,
         "unapproved resources",

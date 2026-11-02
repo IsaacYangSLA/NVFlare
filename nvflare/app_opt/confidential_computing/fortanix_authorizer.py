@@ -91,7 +91,13 @@ class FortanixAuthorizer(CCAuthorizer):
         retry_max_delay=15.0,
         retry_backoff_multiplier=2.0,
         retry_jitter_ratio=0.5,
+        namespace=FORTANIX_NAMESPACE,
     ):
+        if not isinstance(namespace, str) or not re.fullmatch(
+            r"x-fortanix-coco(?:-[a-z0-9][a-z0-9-]{0,95})?", namespace
+        ):
+            raise ValueError("namespace must be x-fortanix-coco with an optional lowercase service suffix")
+        self.namespace = namespace
         if not isinstance(audience, str) or not audience.strip():
             raise ValueError("A project-specific audience is required")
         if not isinstance(site_domains, dict) or not site_domains:
@@ -197,7 +203,7 @@ class FortanixAuthorizer(CCAuthorizer):
             raise ValueError("Pinned issuers must be CA certificates with certificate-signing key usage") from None
 
     def get_namespace(self):
-        return FORTANIX_NAMESPACE
+        return self.namespace
 
     def _credential(self, pem, site, now):
         certificates = self._certificates(pem)

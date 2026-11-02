@@ -4,13 +4,18 @@ Integrate Fortanix through the CoCo guest plugins `ccm_as` and `ccm_kbc`, then a
 
 The supplied implementation provides the basic certificate and image-decryption flow. It does not establish equivalence with NVFlare's current Trustee policies. The conditions for that equivalence are certificate identity tied to an approved workload, CPU and GPU appraisal, attestation freshness, exact resource permissions, and enforcement of the approved guest policy.
 
-This is a proposed design and source assessment dated October 6, 2026. Hardware acceptance, CCM certificate contents, and live CCM/DSM policy behavior require the tests below.
+The Fortanix source assessment was made on October 6, 2026. The implementation
+now includes the authorizer and NVFlare provisioning adapter described in the
+[Fortanix implementation guide](../fortanix/README.md). Hardware acceptance,
+CCM certificate contents, and live CCM/DSM policy behavior still require the
+tests below. Statements about the pinned Fortanix source refer to the reviewed
+revisions, not a qualification of a newer deployment image.
 
 ## Reviewed baselines
 
 | Component | Source revision |
 | --- | --- |
-| NVFlare `2.9` | `4928d76f21dafd64fe5eb41eff9c196e28c70aaa` |
+| NVFlare `2.9` implementation base | `ad047542b1cef7559a8cabfa91475cffc44478fc` |
 | Fortanix guest-components `beta/0.21.0-fortanix-ccm-0.2.0` | `d3ae8f2c572e474d7fd36b76ba4f10042c05fefd` |
 | Fortanix attestation SDK used by that branch | `fade7bf57c93fefaeaca77fe453b87a7909c9cd4` |
 
@@ -70,7 +75,13 @@ Image processing can interleave signature checks, resource retrieval, and layer 
 
 The existing [CoCoAuthorizer](https://github.com/NVIDIA/NVFlare/blob/4928d76f21dafd64fe5eb41eff9c196e28c70aaa/nvflare/app_opt/confidential_computing/coco_authorizer.py) requests `token_type=kbs`, reads `token` and `tee_keypair`, verifies a Trustee EAR, and signs a proof with its attested key. The Fortanix [token getter](https://github.com/fortanix/guest-components/blob/d3ae8f2c572e474d7fd36b76ba4f10042c05fefd/attestation-agent/attestation-agent/src/token/ccm_as.rs) instead returns JSON containing `cert_pem` and `key_pem`.
 
-Add a separate authorizer with its own namespace, provisioned trust, and format version. Request `http://127.0.0.1:8006/aa/token?token_type=ccm_as` from inside the guest. Confirm that the installed REST gateway enables this route. Disable environment proxies and redirects, preserving the existing authorizer's local transport restrictions. Read the private key only into process memory and verify that it matches the certificate public key. Forward only the certificate chain and signed proof.
+The implemented `FortanixAuthorizer` has its own namespace, provisioned trust,
+and format version. It requests
+`http://127.0.0.1:8006/aa/token?token_type=ccm_as` inside the guest, disables
+environment proxies and redirects, validates the certificate/key match, and
+forwards only the certificate chain and signed proof. Confirm that the
+installed REST gateway enables this route and that real credentials satisfy
+the documented certificate profile before deployment.
 
 Loopback access does not authenticate the calling process. The [REST gateway](https://github.com/fortanix/guest-components/blob/d3ae8f2c572e474d7fd36b76ba4f10042c05fefd/api-server-rest/src/router.rs) returns the credential to any admitted loopback caller, and AA shares its cached credential across requests. The initial profile therefore trusts all processes able to access guest loopback and permits one reviewed application container. Introducing untrusted helpers or additional containers requires caller access control and separate credential isolation.
 
@@ -90,7 +101,15 @@ The present CCM payload exposes no EAR-style appraisals or normalized measuremen
 
 ## Workload packaging and service configuration
 
-The [CoCo provisioner](https://github.com/NVIDIA/NVFlare/blob/4928d76f21dafd64fe5eb41eff9c196e28c70aaa/nvflare/lighter/cc_provision/impl/coco.py) currently permits only `CoCoAuthorizer` and requires `trustee_public_key_file`. Introduce an explicit backend selection, such as `attestation_backend: fortanix`, with separate validation and trust inputs. This is a proposed configuration extension.
+The current [CoCo deployment adapter](../../../../nvflare/lighter/cc_provision/impl/coco.py)
+selects an authorizer from the named `attestation_services` entry. Standard
+Trustee configuration uses `attestation_signing_public_key_file` and the shared
+`trustee.py` authorizer factory. Fortanix uses service type `fortanix_ccm`, CCM
+CA certificates and per-site DNS identities. The
+[implementation guide](../fortanix/README.md) gives the current schema,
+generated component flow, and external Fortanix build contract. Do not use the
+older `trustee_public_key_file` project schema or point a Fortanix plan at the
+Trustee publisher.
 
 Retain signed startup kits, restricted private staging, immutable image references, and the packager's public handoff discipline. Add Fortanix-specific publisher and policy generation paths where the existing scripts require KBS resources or Trustee policy fragments.
 
@@ -124,13 +143,19 @@ Existing limitations continue to apply: revocation cannot erase plaintext or key
 
 ## Implementation sequence
 
-| Stage | Deliverable | Completion condition |
+The authorizer, provisioning adapter, and external runner contract are
+implemented in this branch; the table below remains the deployment
+qualification sequence. The runtime/publisher and live policy tests are not
+made complete by those adapters. See the
+[implementation status](../fortanix/README.md) and runnable source examples.
+
+| Stage | Available implementation | Completion condition |
 | --- | --- | --- |
-| 1. Resolve Fortanix contracts | Version manifest, certificate schema, identity policy, renewal behavior, and security policy mapping | The gaps involving identity, freshness, and policy have explicit enforceable answers. |
-| 2. Qualify a minimal encrypted workload | Pinned SNP/GPU runtime, approved references and final InitData, release KEK, signed encrypted image | CCM CPU/GPU approval and DSM decrypt succeed; initial negative release tests fail as expected. |
-| 3. Implement peer verification | New authorizer, explicit provisioning backend, private-key-safe guest API client, verifier-only kits | Offline certificate/proof and provisioning tests pass; identity and expiry checks fail closed. |
-| 4. Integrate packaging | Fortanix publisher, inline public image policy, release authorization record, public and private handoffs | A generated protected client kit becomes an approved encrypted workload without exposing private kit data to CoCo IT. |
-| 5. Validate the federation | Ordinary trusted server and two protected SNP/GPU clients, then a protected server | Training uses the GPU, periodic proofs and certificate renewal work, and the negative matrix passes. |
+| 1. Resolve Fortanix contracts | Version/certificate/policy questions and qualification gates documented; live answers pending. | Identity, freshness, and policy have explicit enforceable answers and retained evidence. |
+| 2. Qualify a minimal encrypted workload | Runtime and publisher acceptance requirements documented; deployment pending. | CCM CPU/GPU approval and DSM decrypt succeed; initial negative release tests deny access. |
+| 3. Supply peer verification | Authorizer, explicit provisioning service, private-key-safe guest API client and verifier-only kits implemented. | Offline certificate/proof and provisioning tests pass; real CCM certificate/identity profile is qualified. |
+| 4. Integrate packaging | Private staging, external Fortanix request/receipt and Pod/InitData validation implemented; vendor publisher pending. | The reviewed runner builds a protected kit into an approved encrypted workload with correct private/public handoffs. |
+| 5. Validate the federation | Two-client example configurations and acceptance requirements supplied; live run pending. | GPU training, periodic proofs and certificate renewal work, and the negative matrix passes. |
 
 Use an ordinary trusted server for the first federation to isolate client integration. Its memory and aggregation remain trusted to its administrator. Two protected clients are needed to exercise cross-site verification; a single client can validate the earlier launch milestone.
 
@@ -138,7 +163,7 @@ Use an ordinary trusted server for the first federation to isolate client integr
 
 | Area | Positive case | Negative cases and required result |
 | --- | --- | --- |
-| Certificate and proof unit tests | Valid pinned chain, permitted site identity, matching key, project audience and current proof | Reject untrusted root, forged or expired cert, mismatched private key, prohibited algorithm/usage, wrong SAN/application/release, wrong logical transport site or audience, oversized input, and replayed ID. Test replay after verifier restart and record the accepted limitation unless stronger replay protection is implemented. |
+| Certificate and proof unit tests | Valid synthetic pinned chain, permitted site SAN, matching key, project audience and current proof | Reject untrusted root, forged or expired cert, mismatched private key, prohibited algorithm/usage, wrong SAN, wrong logical transport site or audience, oversized input, and replayed ID. Application/release issuance restrictions require live CCM tests. Test replay after verifier restart and record the accepted limitation unless stronger replay protection is implemented. |
 | CPU and GPU appraisal | Approved SNP launch plus required confidential GPU evidence obtains a credential | Deny changed boot measurement or InitData, debug-enabled or insufficient-TCB report, wrong VMPL, missing GPU, failed GPU evidence, invalid key/evidence binding, forged Node Agent results, and enrollment replay that would exceed the agreed evidence-age bound. |
 | DSM permissions | Workload decrypts only its approved release's wrapped image material | Deny another release's KEK, another DSM app/group, KEK export, unrelated resource export, and corrupted IV/tag/ciphertext. |
 | Guest image and Agent enforcement | Signed encrypted release runs with the approved command and UID/GID | Deny unsigned/corrupt image, another signed image with unchanged InitData, changed command/environment/privileges/mounts, exec, attach, and ephemeral debug access outside the approved contract. Track any uncovered digest case explicitly. |

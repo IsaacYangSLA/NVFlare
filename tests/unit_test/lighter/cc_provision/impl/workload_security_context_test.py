@@ -352,6 +352,25 @@ def test_unsupported_approved_runtime_fails_closed(runtime_class):
         workload_security.validate_workload_pod({}, context(), ["python3"], runtime_class=runtime_class)
 
 
+@pytest.mark.parametrize("gpu", [True, False])
+def test_explicit_vendor_runtime_requires_independent_allocation_pin(gpu):
+    value = final_workload_pod("kata-fortanix-snp")
+    if not gpu:
+        value["spec"]["containers"][0]["resources"] = {}
+    workload_security.validate_workload_pod(
+        value, context(), ["python3"], runtime_class="kata-fortanix-snp", expected_gpu=gpu
+    )
+    with pytest.raises(ValueError, match="unsupported approved runtime"):
+        workload_security.validate_workload_pod(value, context(), ["python3"], runtime_class="kata-fortanix-snp")
+
+
+@pytest.mark.parametrize("gpu", [True, False])
+def test_vendor_allocation_pin_cannot_override_known_runtime(gpu):
+    runtime = "kata-qemu-snp" if gpu else "kata-qemu-nvidia-gpu-snp"
+    with pytest.raises(ValueError, match="runtime GPU mismatch"):
+        workload_security.validate_workload_pod({}, context(), ["python3"], runtime_class=runtime, expected_gpu=gpu)
+
+
 @pytest.mark.parametrize("runtime_class", RUNTIME_CLASSES)
 @pytest.mark.parametrize(
     "resources",

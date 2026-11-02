@@ -29,6 +29,8 @@ COCO_RUNTIMES = {
 
 def coco_runtime_class(plan):
     """Resolve the runtime class from an already validated deployment plan."""
+    if getattr(getattr(plan, "attestation_service", None), "service_type", None) == "fortanix_ccm":
+        return plan.attestation_service.values["runtime_class"]
     try:
         return COCO_RUNTIMES[(plan.cpu_tee.value, plan.gpu_tee.value)]
     except (AttributeError, KeyError):

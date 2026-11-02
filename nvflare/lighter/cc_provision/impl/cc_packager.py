@@ -26,7 +26,7 @@ import yaml
 from cryptography.hazmat.primitives import serialization
 
 from nvflare.lighter.cc_provision.deployment import CCArtifact, CCDeploymentResult
-from nvflare.lighter.cc_provision.impl.coco_packager import CoCoPlanPackager
+from nvflare.lighter.cc_provision.impl.coco_packager import CoCoPlanPackager, fortanix_build
 from nvflare.lighter.cc_provision.impl.coco_release import coco_runtime_class
 from nvflare.lighter.constants import CtxKey, ProvFileName
 from nvflare.lighter.spec import Packager
@@ -62,15 +62,21 @@ def package_coco_plan(plan, private_kit, public_output, ctx):
             if not value.is_absolute():
                 value = project_path.parent / value
             stream.write(f"{key}={shlex.quote(str(value.resolve()))}\n")
-        stream.write(f"KBS_URL={shlex.quote(plan.attestation_service.values['kbs_endpoint'])}\n")
-        kbs_ca = Path(plan.attestation_service.values["ca_cert_file"]).expanduser()
-        if not kbs_ca.is_absolute():
-            kbs_ca = project_path.parent / kbs_ca
-        stream.write(f"KBS_CA_FILE={shlex.quote(str(kbs_ca.resolve()))}\n")
+        if not fortanix_build(plan):
+            stream.write(f"KBS_URL={shlex.quote(plan.attestation_service.values['kbs_endpoint'])}\n")
+            kbs_ca = Path(plan.attestation_service.values["ca_cert_file"]).expanduser()
+            if not kbs_ca.is_absolute():
+                kbs_ca = project_path.parent / kbs_ca
+            stream.write(f"KBS_CA_FILE={shlex.quote(str(kbs_ca.resolve()))}\n")
     subprocess.run([str(runner), str(request)], cwd=plan.config_path.parent, check=True, timeout=packager.build_timeout)
     receipt = json.loads((owner / "result.json").read_text())
     release_name = plan.mode_config["release_name"]
-    if receipt.get("schema") != "nvflare-coco-build-result/v1" or receipt.get("release_name") != release_name:
+    schema = "nvflare-fortanix-coco-build-result/v1" if fortanix_build(plan) else "nvflare-coco-build-result/v1"
+    if (
+        receipt.get("schema") != schema
+        or receipt.get("release_name") != release_name
+        or (fortanix_build(plan) and receipt.get("backend") != "fortanix_ccm")
+    ):
         raise ValueError("Invalid CoCo build result")
     pod = Path(receipt.get("pod_yaml", ""))
     if not pod.is_absolute() or pod.is_symlink() or not pod.is_file():

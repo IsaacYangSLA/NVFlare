@@ -16,6 +16,7 @@
 
 from nvflare.lighter.cc_provision.deployment import CCDeployment, CCDeploymentMode, CCDeploymentPlan
 from nvflare.lighter.cc_provision.impl.coco_release import _silence_coco_startup
+from nvflare.lighter.cc_provision.impl.fortanix import fortanix_authorizer
 from nvflare.lighter.cc_provision.impl.trustee import trustee_authorizer
 
 
@@ -29,8 +30,11 @@ class CoCoDeployment(CCDeployment):
             raise ValueError("coco requires build_tools.coco")
         if not project_config.get("container_registries"):
             raise ValueError("coco requires a named container registry")
-        if not any(service.get("type") == "trustee" for service in project_config["attestation_services"].values()):
-            raise ValueError("coco requires a Trustee attestation service")
+        if not any(
+            service.get("type") in {"trustee", "fortanix_ccm"}
+            for service in project_config["attestation_services"].values()
+        ):
+            raise ValueError("coco requires a Trustee or Fortanix CCM attestation service")
 
     def create_plan(self, participant, cc_config, project_config):
         mode_config = dict(cc_config["mode_config"])
@@ -56,6 +60,8 @@ class CoCoDeployment(CCDeployment):
     @staticmethod
     def authorizer(plan, *, issuer):
         service = plan.attestation_service
+        if service.service_type == "fortanix_ccm":
+            return fortanix_authorizer(plan, issuer=issuer)
         return trustee_authorizer(
             plan,
             issuer=issuer,

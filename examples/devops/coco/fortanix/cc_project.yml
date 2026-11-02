@@ -1,0 +1,29 @@
+schema_version: 1
+attestation_services:
+  ccm:
+    type: fortanix_ccm
+    ccm_ca_cert_file: private/ccm-zone-ca.pem
+    image_signing_public_key_file: trust/cosign.pub
+    site_domains:
+      site-1: site-1.fl-project.example.com
+      site-2: site-2.fl-project.example.com
+    attestation_token_endpoint: http://127.0.0.1:8006/aa/token
+    runtime_class: kata-fortanix-snp-gpu
+    dsm_endpoint: https://apps.dsm.example.com
+    dsm_app_id: 11111111-1111-4111-8111-111111111111
+    token_expiration_seconds: 300
+    check_frequency_seconds: 120
+    registration_token_timeout_seconds: 300
+    refresh_token_timeout_seconds: 30
+    get_token_request_timeout_seconds: 45
+    max_certificate_age_seconds: 3600
+container_registries:
+  workloads:
+    endpoint: registry.example.com:5000
+    ca_cert_file: private/registry-ca.pem
+    publisher_username_file: private/registry-username
+    publisher_password_file: private/registry-password
+build_tools:
+  coco:
+    build_command: private/build-fortanix
+    build_timeout_seconds: 3600

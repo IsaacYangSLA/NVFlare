@@ -14,6 +14,8 @@
 
 """Package one normalized CoCo deployment plan on the trusted provisioning node."""
 
+import base64
+import gzip
 import json
 import os
 import re
@@ -22,11 +24,70 @@ import shutil
 from pathlib import Path
 
 from nvflare.lighter.cc_provision.impl.coco_release import COCO_STARTUP_PROLOGUE, coco_runtime_class
-from nvflare.lighter.cc_provision.workload_security import read_pod, validate_workload_pod
+from nvflare.lighter.cc_provision.workload_security import (
+    decode_initdata,
+    read_pod,
+    unique_object,
+    validate_workload_pod,
+)
 from nvflare.lighter.constants import ProvFileName
 from nvflare.lighter.utils import verify_folder_signature
 
 COMMAND = ["/opt/nvflare/startup/sub_start.sh", "--once", "--verify"]
+
+
+def fortanix_build(plan):
+    return getattr(getattr(plan, "attestation_service", None), "service_type", None) == "fortanix_ccm"
+
+
+def _nested_toml(value):
+    if not isinstance(value, str) or len(value) > 4 * 1024 * 1024:
+        raise ValueError("Invalid Fortanix guest configuration")
+    # Reuse the bounded, Python 3.10-compatible TOML parser.
+    return decode_initdata(base64.b64encode(gzip.compress(value.encode())).decode())
+
+
+def validate_fortanix_initdata(encoded, plan, image):
+    """Check the backend wiring; CCM approval and evidence appraisal remain external."""
+    service = plan.attestation_service.values
+    try:
+        initdata = decode_initdata(encoded)
+        if initdata.get("version") != "0.1.0" or initdata.get("algorithm") not in ("sha256", "sha384"):
+            raise ValueError("Unsupported Fortanix InitData profile")
+        data = initdata["data"]
+        aa = _nested_toml(data["aa.toml"])
+        cdh = _nested_toml(data["cdh.toml"])
+        expected_domain = service["site_domains"][plan.internal["site_name"]]
+        if set(aa["token_configs"]) != {"ccm_as"} or aa["token_configs"]["ccm_as"].get("ccm_domain_names") != [
+            expected_domain
+        ]:
+            raise ValueError("Fortanix AA identity does not match the participant")
+        if cdh["kbc"].get("name") != "ccm_kbc" or cdh["kbc"].get("url") != service["dsm_endpoint"]:
+            raise ValueError("Fortanix CDH backend does not match the configured DSM")
+        if cdh["kbc_configs"]["ccm_kbc"].get("dsm_app_id") != service["dsm_app_id"]:
+            raise ValueError("Fortanix CDH application does not match the configured DSM application")
+        image_config = cdh["image"]
+        if "image_security_policy_uri" in image_config:
+            raise ValueError("Fortanix requires an inline image policy without a URI override")
+        image_policy = json.loads(image_config["image_security_policy"], object_pairs_hook=unique_object)
+        expected_policy = {
+            "default": [{"type": "reject"}],
+            "transports": {
+                "docker": {
+                    image.split("@", 1)[0]: [
+                        {
+                            "type": "sigstoreSigned",
+                            "keyData": Path(service["image_signing_public_key_file"]).read_text(),
+                            "signedIdentity": {"type": "matchRepository"},
+                        }
+                    ]
+                }
+            },
+        }
+        if image_policy != expected_policy:
+            raise ValueError("Fortanix requires the pinned signer and exact image repository in its image policy")
+    except (KeyError, TypeError, AttributeError) as exc:
+        raise ValueError("Missing or invalid Fortanix InitData configuration") from exc
 
 
 def private_write(path, text):
@@ -115,19 +176,36 @@ class CoCoPlanPackager:
             "APP_READ_ONLY_ROOT_FILESYSTEM": "false",
         }
         private_write(workload, "".join(f"{key}={shlex.quote(value)}\n" for key, value in values.items()))
+        payload = {
+            "schema": "nvflare-coco-build-request/v1",
+            "workload_env": str(workload),
+            "admin_dir": str(platform.parent),
+            "result_file": str(owner / "result.json"),
+        }
+        if fortanix_build(plan):
+            service = plan.attestation_service.values
+            payload.update(
+                schema="nvflare-fortanix-coco-build-request/v1",
+                backend="fortanix_ccm",
+                participant=plan.participant_name,
+                service=plan.attestation_service.name,
+                runtime_class=runtime_class,
+                ccm={
+                    "site_domain": service["site_domains"][plan.internal["site_name"]],
+                    "root_ca_certificates": Path(service["ccm_ca_cert_file"]).read_text(),
+                    "intermediate_certificates": (
+                        Path(service["ccm_intermediate_cert_file"]).read_text()
+                        if service.get("ccm_intermediate_cert_file")
+                        else ""
+                    ),
+                },
+                dsm={"endpoint": service["dsm_endpoint"], "app_id": service["dsm_app_id"]},
+                image_signing_public_key=Path(service["image_signing_public_key_file"]).read_text(),
+            )
         request = owner / "build-request.json"
         private_write(
             request,
-            json.dumps(
-                {
-                    "schema": "nvflare-coco-build-request/v1",
-                    "workload_env": str(workload),
-                    "admin_dir": str(platform.parent),
-                    "result_file": str(owner / "result.json"),
-                },
-                indent=2,
-            )
-            + "\n",
+            json.dumps(payload, indent=2) + "\n",
         )
         return request, runner
 
@@ -149,6 +227,7 @@ class CoCoPlanPackager:
             },
             COMMAND,
             runtime_class=runtime_class,
+            **({"expected_gpu": plan.gpu_tee.value == "nvidia_cc"} if fortanix_build(plan) else {}),
         )
         if not isinstance(pod, dict) or pod.get("kind") != "Pod" or pod.get("apiVersion") != "v1":
             raise ValueError("Build did not produce a v1 Pod")
@@ -172,5 +251,11 @@ class CoCoPlanPackager:
             raise ValueError("Pod image must be digest-pinned in the configured repository")
         if not pod.get("metadata", {}).get("annotations", {}).get("io.katacontainers.config.hypervisor.cc_init_data"):
             raise ValueError("Pod lacks measured init-data")
+        if fortanix_build(plan):
+            validate_fortanix_initdata(
+                pod["metadata"]["annotations"]["io.katacontainers.config.hypervisor.cc_init_data"],
+                plan,
+                container["image"],
+            )
         if any(key in spec for key in ("volumes", "initContainers", "ephemeralContainers", "imagePullSecrets")):
             raise ValueError("Pod contains unapproved storage, containers, or credentials")

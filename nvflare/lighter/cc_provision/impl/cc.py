@@ -167,6 +167,16 @@ class CCBuilder(Builder):
                 }
                 for participant in participants
             }
+        for name, service in self.project_config["attestation_services"].items():
+            if service["type"] != "fortanix_ccm":
+                continue
+            sites = {
+                _site_name(participant)
+                for participant in selected
+                if normalized[participant.name]["attestation_service"].name == name
+            }
+            if sites and set(service["site_domains"]) != sites:
+                raise ValueError(f"attestation_services.{name}.site_domains must contain exactly the protected sites")
         releases = [
             value["mode_config"]["release_name"]
             for value in normalized.values()
@@ -264,20 +274,22 @@ class CCBuilder(Builder):
                 # The existing 2.9 Azure authorizers retain their MAA semantics.
                 "require_site_binding": all(plan.mode is not CCDeploymentMode.AZURE_CC for plan in self.plans.values()),
             }
-            trustee = next(
-                (
-                    plan.attestation_service.values
-                    for plan in self.plans.values()
-                    if plan.attestation_service.service_type == "trustee"
-                ),
-                None,
-            )
-            if trustee:
+            timed_services = [
+                plan.attestation_service.values
+                for plan in self.plans.values()
+                if plan.attestation_service.service_type in {"trustee", "fortanix_ccm"}
+            ]
+            if timed_services:
                 manager_args.update(
                     resolve_token_timeouts(
-                        registration_token_timeout=trustee["registration_token_timeout_seconds"],
-                        refresh_token_timeout=trustee["refresh_token_timeout_seconds"],
-                        get_token_request_timeout=trustee["get_token_request_timeout_seconds"],
+                        **{
+                            field: max(service[field + "_seconds"] for service in timed_services)
+                            for field in (
+                                "registration_token_timeout",
+                                "refresh_token_timeout",
+                                "get_token_request_timeout",
+                            )
+                        }
                     )
                 )
             self._write_component(

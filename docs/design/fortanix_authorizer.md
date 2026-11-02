@@ -9,10 +9,11 @@ It accepts a CCM application certificate and proves possession of its private
 key. It does not interpret a Trustee EAR, enroll a machine, configure CCM/DSM,
 or install a Kata runtime.
 
-The CoCo backend of the unified confidential-computing provisioner remains
-Trustee-only.
-This change supplies an authorizer component for manually prepared resource
-configuration; it does not add a Fortanix backend to the provisioning schema.
+For the NVFlare code map, operator roles, provisioning flow, external publisher
+contract, and remaining qualification work, start with the
+[Fortanix implementation guide](../../examples/devops/coco/fortanix/README.md).
+The manual component configuration below explains the authorizer contract;
+generated configurations should come from the unified provisioner.
 
 ## Analysis of the existing authorizers
 
@@ -61,7 +62,11 @@ returns `cert_pem` and `key_pem` for
 connects attestation to a generated application key. The private key stays in
 memory and never appears in the transmitted proof, logs or error messages.
 
-The new proof has namespace `x-fortanix-coco`, JWT type
+The manual authorizer defaults to namespace `x-fortanix-coco`. Provisioned
+authorizers use a stable service-specific namespace and component ID so
+different CCM trust services cannot overwrite each other's verifier entries.
+All participants in a project must use the generated service mapping together.
+The proof has JWT type
 `NVFLARE-FORTANIX+JWT`, format version 1, and a public `cert_chain_pem` alongside
 `sub`, `aud`, `iat`, `exp` and random `jti`. The leaf's RSA key signs it using
 RS256; the accepted leaf key must have at least 3072 bits. An unrelated key,

@@ -24,8 +24,13 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Any, Dict, Iterable, Mapping
 from urllib.parse import urlsplit
+from uuid import UUID
 
+from cryptography.hazmat.primitives.serialization import load_pem_public_key
+
+from nvflare.app_opt.confidential_computing.cc_timeouts import resolve_token_timeouts
 from nvflare.app_opt.confidential_computing.coco_authorizer import CoCoAuthorizer
+from nvflare.app_opt.confidential_computing.fortanix_authorizer import FortanixAuthorizer
 from nvflare.app_opt.confidential_computing.trustee_claims import normalize_cpu_tee
 from nvflare.lighter import utils
 from nvflare.lighter.cc.image_builder.cvm.common.contracts import DEFAULT_EXPIRY_WARNING_SECONDS
@@ -401,6 +406,8 @@ def _validate_service(name, value, config_path):
             **({"retry_backoff_multiplier": retry["backoff_multiplier"]} if retry else {}),
             **({"retry_jitter_ratio": retry["jitter_ratio"]} if retry else {}),
         )
+    elif service_type == "fortanix_ccm":
+        _validate_fortanix_service(name, service, config_path)
     elif service_type == "azure_maa":
         _exact(
             service,
@@ -420,7 +427,79 @@ def _validate_service(name, value, config_path):
         if frequency >= age:
             raise ValueError("azure_maa requires check_frequency_seconds < token_expiration_seconds")
     else:
-        raise ValueError(f"attestation_services.{name}.type must be trustee or azure_maa")
+        raise ValueError(f"attestation_services.{name}.type must be trustee, fortanix_ccm, or azure_maa")
+
+
+def _validate_fortanix_service(name, service, config_path):
+    required = {
+        "type",
+        "ccm_ca_cert_file",
+        "image_signing_public_key_file",
+        "site_domains",
+        "attestation_token_endpoint",
+        "runtime_class",
+        "dsm_endpoint",
+        "dsm_app_id",
+        "token_expiration_seconds",
+        "check_frequency_seconds",
+        "registration_token_timeout_seconds",
+        "refresh_token_timeout_seconds",
+        "get_token_request_timeout_seconds",
+    }
+    optional = {"ccm_intermediate_cert_file", "max_certificate_age_seconds", "proof_iat_leeway_seconds", "retry"}
+    _exact(service, required | optional, f"attestation_services.{name}", required=required)
+    for field in ("ccm_ca_cert_file", "ccm_intermediate_cert_file", "image_signing_public_key_file"):
+        if field in service:
+            service[field] = str(_path(config_path, service[field], f"attestation_services.{name}.{field}"))
+    try:
+        load_pem_public_key(Path(service["image_signing_public_key_file"]).read_bytes())
+    except (ValueError, TypeError):
+        raise ValueError("fortanix_ccm.image_signing_public_key_file must contain a PEM public key") from None
+    runtime = service["runtime_class"]
+    if not isinstance(runtime, str) or len(runtime) > 63 or not DNS_LABEL.fullmatch(runtime):
+        raise ValueError("fortanix_ccm.runtime_class must be a lowercase DNS label")
+    _https_endpoint(service["dsm_endpoint"], f"attestation_services.{name}.dsm_endpoint")
+    try:
+        if not isinstance(service["dsm_app_id"], str) or str(UUID(service["dsm_app_id"])) != service["dsm_app_id"]:
+            raise ValueError
+    except (ValueError, TypeError, AttributeError):
+        raise ValueError("fortanix_ccm.dsm_app_id must be a canonical UUID") from None
+    age = _positive_int(service["token_expiration_seconds"], "fortanix_ccm.token_expiration_seconds")
+    frequency = _positive_int(service["check_frequency_seconds"], "fortanix_ccm.check_frequency_seconds")
+    if frequency >= age:
+        raise ValueError("fortanix_ccm requires check_frequency_seconds < token_expiration_seconds")
+    resolve_token_timeouts(
+        **{
+            field: service[field + "_seconds"]
+            for field in ("registration_token_timeout", "refresh_token_timeout", "get_token_request_timeout")
+        }
+    )
+    retry_fields = {"max_attempts", "initial_delay_seconds", "max_delay_seconds", "backoff_multiplier", "jitter_ratio"}
+    retry = _exact(
+        service.get("retry", {}),
+        retry_fields,
+        "fortanix_ccm.retry",
+        required=retry_fields if "retry" in service else (),
+    )
+    retry_args = {
+        "max_attempts": "retry_max_attempts",
+        "initial_delay_seconds": "retry_initial_delay",
+        "max_delay_seconds": "retry_max_delay",
+        "backoff_multiplier": "retry_backoff_multiplier",
+        "jitter_ratio": "retry_jitter_ratio",
+    }
+    FortanixAuthorizer(
+        ccm_ca_certificates=Path(service["ccm_ca_cert_file"]).read_text(),
+        ccm_intermediate_certificates=(
+            Path(service["ccm_intermediate_cert_file"]).read_text() if "ccm_intermediate_cert_file" in service else ""
+        ),
+        audience="nvflare-config-validation",
+        site_domains=service["site_domains"],
+        token_url=service["attestation_token_endpoint"],
+        proof_lifetime_seconds=age,
+        **{key: service[key] for key in ("max_certificate_age_seconds", "proof_iat_leeway_seconds") if key in service},
+        **{retry_args[key]: value for key, value in retry.items()},
+    )
 
 
 def load_participant_config(config_path: Path, project_config: Mapping[str, Any]):
@@ -455,9 +534,15 @@ def load_participant_config(config_path: Path, project_config: Mapping[str, Any]
     if service_name not in services:
         raise ValueError(f"Unknown attestation.service: {service_name}")
     service = services[service_name]
-    expected_type = "azure_maa" if mode is CCDeploymentMode.AZURE_CC else "trustee"
-    if service["type"] != expected_type:
-        raise ValueError(f"{mode.value} requires an attestation service of type {expected_type}")
+    expected_types = {
+        CCDeploymentMode.AZURE_CC: {"azure_maa"},
+        CCDeploymentMode.BARE_METAL_CVM: {"trustee"},
+        CCDeploymentMode.COCO: {"trustee", "fortanix_ccm"},
+    }[mode]
+    if service["type"] not in expected_types:
+        raise ValueError(f"{mode.value} requires an attestation service of type {' or '.join(sorted(expected_types))}")
+    if service["type"] == "fortanix_ccm" and cpu is not CPUTEE.AMD_SEV_SNP:
+        raise ValueError("fortanix_ccm currently supports only CoCo amd_sev_snp participants")
     if mode is CCDeploymentMode.BARE_METAL_CVM and "admin_token_file" not in service:
         raise ValueError(
             f"bare_metal_cvm requires attestation_services.{service_name}.admin_token_file for resource registration"
