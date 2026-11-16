@@ -1,0 +1,231 @@
+[
+  {
+    "id": 10,
+    "title": "Proposed pipeline: validate, save and forward events",
+    "label": "Proposed",
+    "takeaway": "One admission contract for AuditService and direct Auditor calls; preserve legacy entry points and text output.",
+    "bullets": [
+      "Validate required fields, bounds and identity context before either service or direct writes.",
+      "Apply OWASP guidance to event coverage, secret exclusion, log injection and failure reporting.",
+      "Keep text output compatible; optional versioned JSONL uses separate files and supported readers.",
+      "Report local write status independently; collector delivery and archive acceptance have separate acknowledgements."
+    ],
+    "notes": "The proposal keeps AuditService and Auditor while giving service calls and direct Auditor calls the same record-admission policy: event-specific required fields, bounds, approved fields, redaction and safe encoding. Compatibility adapters preserve existing signatures, returned event IDs and default text output. Allocating an ID does not establish persistence. Text and versioned JSONL use separate destinations; new-format readers, authorized retrieval and workspace-archive support ship with JSONL. Collection and remote archival remain optional deployment integrations with explicit acknowledgement semantics. Allow-listed fields and configured redaction cannot detect arbitrary secrets in unrestricted content; producers must supply approved metadata. OWASP stands for Open Worldwide Application Security Project, a nonprofit foundation publishing free software-security guidance, tools and standards. Its Logging Cheat Sheet informs authentication/authorization event coverage, the actor/action/resource/timestamp/outcome contract, secret exclusion, log-injection prevention and independent failure reporting. These apply at producer, admission and writer boundaries rather than only at the serializer. The next record shows a concrete validation rejection.",
+    "sources": [
+      "https://github.com/IsaacYangSLA/NVFlare/blob/9111adf826b3e6795569c8770db336fa0a22aefe/docs/audit-improvement-program.md",
+      "https://opentelemetry.io/docs/specs/otel/logs/data-model/",
+      "https://owasp.org/about",
+      "https://cheatsheetseries.owasp.org/cheatsheets/Logging_Cheat_Sheet.html"
+    ],
+    "flow": [
+      "1. Producer creates structured fields",
+      "2. Shared validation and sanitization",
+      "3. Write local text or JSONL",
+      "4. Optional collector forwards records",
+      "5. External archive retains records"
+    ],
+    "body_font_size": 18,
+    "bullet_wrap": 48,
+    "bullet_line_height": 0.26,
+    "source_checked": "2026-11-10",
+    "source_label": "Proposal: docs/audit-improvement-program.md · OpenTelemetry log model",
+    "callout": "OWASP (Open Worldwide Application Security Project): nonprofit publishing free software-security guidance.",
+    "source_checks": {
+      "https://github.com/IsaacYangSLA/NVFlare/blob/9111adf826b3e6795569c8770db336fa0a22aefe/docs/audit-improvement-program.md": "2026-11-10",
+      "https://opentelemetry.io/docs/specs/otel/logs/data-model/": "2026-11-10",
+      "https://owasp.org/about": "2026-11-10",
+      "https://cheatsheetseries.owasp.org/cheatsheets/Logging_Cheat_Sheet.html": "2026-11-10"
+    }
+  },
+  {
+    "id": 11,
+    "title": "Proposed record: an explicit validation outcome",
+    "label": "Proposed",
+    "takeaway": "Continue slide 8: after receipt S2, a proposed record S3 says that validation rejected the result.",
+    "bullets": [
+      "Continue slide 8’s invalid reply: expected job J42; incoming context reports J41.",
+      "actor names the validator; phase names the step; outcome records the result.",
+      "parent_event_id links rejection S3 to receipt S2; reported_context preserves the peer claim separately.",
+      "attempt_id is null: this early rejection has not established an attempt. Unknown values must stay unknown."
+    ],
+    "notes": "Illustrative S3 adds an explicit rejection to the receipt S2 from slide 8; it is not current output. The actor is the local server validator. Resource job J42 is local context; task T1 is the submitted identifier and does not establish an eligible assignment. Reported J41 remains a peer claim. Capture the return ID from the current receipt audit call before emitting the linked rejection at the wrong-job branch. That branch precedes attempt decoding and validation, so attempt_id remains null even if incoming metadata claims one. Existing ClientTask attempt UUIDs can be forwarded where established; do not invent an attempt ID to fill the record. S2/S3 stand in for UUIDs. Phase identifies the validation operation; outcome and reason describe its decision, independently of receipt or later processing completion. The following tables distinguish available runtime context from new producer and writer responsibilities.",
+    "sources": [
+      "https://github.com/IsaacYangSLA/NVFlare/blob/9111adf826b3e6795569c8770db336fa0a22aefe/docs/audit-improvement-program.md",
+      "https://github.com/NVIDIA/NVFlare/blob/f787dd919bee1f98e1f0f36ecb9b4c37b6f66154/nvflare/private/fed/server/server_runner.py#L477-L501"
+    ],
+    "code": "{\"schema_version\": 1, \"event_id\": \"S3\", \"parent_event_id\": \"S2\",\n \"actor\": {\"id\": \"server\", \"role\": \"validator\"},\n \"action\": \"task.result.validate\", \"phase\": \"validation\",\n \"resource\": {\"job_id\": \"J42\", \"task_id\": \"T1\", \"attempt_id\": null},\n \"reported_context\": {\"job_id\": \"J41\"},\n \"timestamp\": \"2026-11-05T18:00:00Z\",\n \"outcome\": \"rejected\", \"reason\": \"job_mismatch\"}",
+    "code_size": 14,
+    "source_checked": "2026-11-10",
+    "source_label": "Proposal + code: server_runner.py receipt, rejection and attempt-validation ordering",
+    "code_label": "ILLUSTRATIVE EVENT  /  JSON"
+  },
+  {
+    "label": "Proposed",
+    "bullets": [],
+    "sources": [
+      "https://github.com/NVIDIA/NVFlare/blob/f787dd919bee1f98e1f0f36ecb9b4c37b6f66154/nvflare/fuel/sec/audit.py#L43-L89",
+      "https://github.com/NVIDIA/NVFlare/blob/f787dd919bee1f98e1f0f36ecb9b4c37b6f66154/nvflare/apis/utils/fl_context_utils.py#L114-L122",
+      "https://github.com/NVIDIA/NVFlare/blob/f787dd919bee1f98e1f0f36ecb9b4c37b6f66154/nvflare/apis/controller_spec.py#L176-L189",
+      "https://github.com/NVIDIA/NVFlare/blob/f787dd919bee1f98e1f0f36ecb9b4c37b6f66154/nvflare/private/fed/server/server_runner.py#L477-L501"
+    ],
+    "source_checked": "2026-11-10",
+    "source_label": "Code: audit.py · job-context helper · ClientTask · server validation; full links in notes",
+    "id": 12,
+    "title": "Proposed fields: data already available in the runtime",
+    "takeaway": "Wire established runtime context into the audit contract; distinguish authenticated identity from peer-supplied claims.",
+    "table": {
+      "headers": [
+        "Proposed fields",
+        "Existing availability",
+        "What needs changing"
+      ],
+      "rows": [
+        [
+          "event_id",
+          "UUID already generated",
+          "Reuse existing event-ID generation."
+        ],
+        [
+          "parent_event_id",
+          "References in selected exchanges",
+          "Keep the relevant event ID; distinguish other reference types."
+        ],
+        [
+          "actor.id / actor.role",
+          "Admin username, site identity and process type",
+          "Pass authoritative identity; classify the acting component."
+        ],
+        [
+          "action / phase",
+          "Producer knows its operation; A names a command/task",
+          "Emit explicit operation and phase fields."
+        ],
+        [
+          "Job / task / workflow / attempt IDs",
+          "Runtime IDs exist, including attempt UUIDs",
+          "Forward context the current audit helper omits."
+        ]
+      ],
+      "column_widths": [
+        2.9,
+        4.15,
+        4.88
+      ],
+      "font_size": 16,
+      "line_spacing": 1.0,
+      "cell_margin_y": 0.02,
+      "header_height": 0.38
+    },
+    "callout": "Identity provenance = how identity was established; keep peer claims and unknown values explicit.",
+    "notes": "Runtime availability is not current audit coverage. Reuse existing UUID generation, retain event references and distinguish them from resource references. Command filters expose admin usernames; job contexts provide local site and process context. Producers must assign actor role and provenance from authoritative context. The current A field often names only a command or task, so action and phase need explicit mapping. Job, workflow, task and attempt identifiers already exist in relevant runtime paths; ClientTask generates attempt UUIDs, and retransmission of the same assignment retains that identity. The current job helper omits workflow, attempt and actor context. Extend the API/helper wiring without synthesizing values for early rejection, malformed contexts or legacy peers. Identity provenance records how the actor identity was established, such as an authenticated connection rather than an unverified request field; authentication code supplies that evidence and the writer records it."
+  },
+  {
+    "label": "Proposed",
+    "bullets": [],
+    "sources": [
+      "https://github.com/NVIDIA/NVFlare/blob/f787dd919bee1f98e1f0f36ecb9b4c37b6f66154/nvflare/fuel/sec/audit.py#L43-L89",
+      "https://github.com/NVIDIA/NVFlare/blob/f787dd919bee1f98e1f0f36ecb9b4c37b6f66154/nvflare/apis/utils/fl_context_utils.py#L114-L122",
+      "https://github.com/NVIDIA/NVFlare/blob/f787dd919bee1f98e1f0f36ecb9b4c37b6f66154/nvflare/apis/controller_spec.py#L176-L189",
+      "https://github.com/NVIDIA/NVFlare/blob/f787dd919bee1f98e1f0f36ecb9b4c37b6f66154/nvflare/private/fed/server/server_runner.py#L477-L501"
+    ],
+    "source_checked": "2026-11-10",
+    "source_label": "Code: audit.py · job-context helper · ClientTask · server validation; full links in notes",
+    "id": 13,
+    "title": "Proposed fields: generation and new event producers",
+    "takeaway": "A new output format cannot create missing decisions or application evidence; the responsible producer must emit them.",
+    "table": {
+      "headers": [
+        "Proposed fields",
+        "Existing availability",
+        "What needs changing"
+      ],
+      "rows": [
+        [
+          "UTC timestamp",
+          "Writer generates local time without an offset",
+          "Generate timezone-aware UTC for new events."
+        ],
+        [
+          "outcome / reason",
+          "Decision branches know some results and reasons",
+          "Audit authoritative decisions; a return code is not acceptance."
+        ],
+        [
+          "Schema version / process-instance ID / sequence",
+          "Not maintained by the current audit writer",
+          "Add format-version and writer bookkeeping."
+        ],
+        [
+          "Model digest / patient access / approvals / external changes",
+          "Application-specific; digest = content fingerprint",
+          "Add application/external events; writer need not read models."
+        ]
+      ],
+      "column_widths": [
+        2.9,
+        4.15,
+        4.88
+      ],
+      "font_size": 16,
+      "line_spacing": 1.0,
+      "cell_margin_y": 0.02,
+      "header_height": 0.38
+    },
+    "callout": "For S3: retain receipt S2, emit the rejection, and leave the unestablished attempt null.",
+    "notes": "Generate timezone-aware UTC for new records without inventing offsets for historical timestamps. Emit outcome/reason at authoritative decision branches and scope them to the named action and phase: a client return code does not establish server acceptance or workflow completion. Schema version, a fresh process-instance UUID and per-process sequence are new writer bookkeeping, not a global order. Existing specialized SHA-256 paths do not establish which model executed every task. The model-loading component supplies verified model identity linked to the attempt; the writer validates and persists that metadata without fetching, reading or hashing models. Applications and external systems emit patient-access, approval/signature and storage-change events they alone observe. For S3, retain the S2 return ID and instrument the wrong-job rejection, leaving the unestablished attempt null. Business-operation outcomes and audit-persistence states remain separate."
+  },
+  {
+    "id": 14,
+    "title": "Saving records and handling write failures",
+    "label": "Proposed",
+    "takeaway": "Business outcomes and audit-storage states are separate: a rejected result can still have a saved record.",
+    "bullets": [
+      "Default: continue training and alert on audit-write failures. This permits gaps in evidence.",
+      "Health reporting exposes write errors, storage availability and recovery status.",
+      "Optional strict mode: before a sensitive permission change, save and synchronize a planned-action record.",
+      "If writing or sync fails, block the change. Record its outcome afterward; intent alone does not establish completion."
+    ],
+    "notes": "Track audit persistence separately from the task or admin outcome. An allocated event ID proves neither a successful write nor any later acknowledgement. Local write/flush, successful fsync, collector delivery and archive acceptance each depend on their own storage or transport contract. Default continue-and-alert preserves training availability while permitting evidence gaps; failure diagnostics must be bounded, sanitized and independent of the failing audit path. Optional strict admission applies only to selected sensitive admin changes: require a locally synchronized intent before the action, then emit completion/failure afterward. This does not make audit I/O and the action atomic. If the action completes and its final audit write fails, report uncertainty without replaying the action. An unmatched intent leaves completion unknown. Neither local synchronization nor an archive receipt establishes permanent retention.",
+    "sources": [
+      "https://github.com/IsaacYangSLA/NVFlare/blob/9111adf826b3e6795569c8770db336fa0a22aefe/docs/audit-improvement-program.md",
+      "https://csrc.nist.gov/pubs/sp/800/92/final"
+    ],
+    "flow": [
+      "Created: event ID allocated",
+      "Local write + flush complete",
+      "Optional fsync completes",
+      "Optional collector acknowledges",
+      "External archive acknowledges"
+    ],
+    "body_font_size": 18,
+    "bullet_wrap": 48,
+    "bullet_line_height": 0.26,
+    "source_checked": "2026-11-10",
+    "source_label": "Proposal: docs/audit-improvement-program.md · NIST log-management guidance"
+  },
+  {
+    "id": 15,
+    "title": "One writer per file; retrieve records from every process",
+    "label": "Proposed",
+    "takeaway": "Fix the shared-file risk from slide 4: each main or worker process owns its audit file.",
+    "bullets": [
+      "Main, job, isolated-worker and client sub-worker processes need explicit file ownership.",
+      "Assign a new unique process-instance ID at every start, including restarts.",
+      "Inventory every process file and retained segment, including output-root overrides.",
+      "Authorized job-audit downloads use that inventory to include all relevant evidence."
+    ],
+    "notes": "Replace the thread-only shared-destination assumption with one process owner per audit file and an OS-level ownership lock released on exit or crash. Each start receives a fresh process-instance UUID; a reused PID must not join unrelated writer instances. Introduce file placement, ownership, inventory and authorized retrieval together, covering main/job processes, isolated workers, client sub-workers and external output roots. Retained segments belong in the inventory when rotation is introduced. A layout change that creates files without adding them to authorized downloads loses retrievability even if writing succeeds. Process-local sequence and event links support reconstruction; timestamps alone do not impose global order across sites. The implementation groups below preserve these integration boundaries.",
+    "sources": [
+      "https://github.com/IsaacYangSLA/NVFlare/blob/9111adf826b3e6795569c8770db336fa0a22aefe/docs/audit-improvement-program.md"
+    ],
+    "flow": [
+      "Main process → its audit file",
+      "Worker process → a separate file",
+      "Inventory → every process and part",
+      "Download → all authorized evidence"
+    ],
+    "source_checked": "2026-11-10",
+    "source_label": "Proposal: docs/audit-improvement-program.md · Process ownership and retrieval",
+    "flow_arrows": false
+  }
+]

@@ -1,0 +1,318 @@
+[
+  {
+    "id": 1,
+    "title": "Audit logging: current behavior and proposed design",
+    "label": "Existing",
+    "takeaway": "Improve audit coverage, record semantics and persistence without hiding producer responsibilities.",
+    "bullets": [
+      "Review explicit audit call sites, the Auditor API and the audit.log file contract.",
+      "Separate an observed action from its acceptance, rejection or durable recording.",
+      "Example labels: job J42, task T1, attempt A1. Retransmitting an assignment retains its attempt identity.",
+      "Propose record and capture-point changes, writer guarantees and implementation boundaries; industry references follow in the appendix."
+    ],
+    "notes": "The existing-audit walkthrough is pinned to commit f787dd919. The logging inventory on slide 2 was checked separately at main commit 2d2d6f7ac; neither is a claim about an unexamined later head. This discussion targets audit contracts, coverage gaps and implementation boundaries for NVFlare core development. J42, T1 and A1 are readable example labels. A1 is not a claim that the current text writer emits an attempt_id field. Retransmitting the same assignment retains its attempt identity; a resend does not itself authorize a new execution attempt. Explicit audit calls create the selected observations examined here. References connect observations, but do not prove complete coverage, successful validation or durable storage. The proposed capabilities are design goals. Industry standards and vendor mechanisms are cited references in the appendix; model-training scenarios are illustrations.",
+    "sources": [
+      "https://github.com/NVIDIA/NVFlare/blob/f787dd919bee1f98e1f0f36ecb9b4c37b6f66154/nvflare/fuel/sec/audit.py#L28-L142"
+    ],
+    "body_font_size": 22,
+    "callout": "Existing code: reviewed baseline f787dd919. Proposed capabilities are design goals, not implemented features.",
+    "source_checked": "2026-11-10",
+    "source_label": "Source: NVFlare code baseline f787dd919 · Full references in speaker notes"
+  },
+  {
+    "id": 2,
+    "title": "Four types of logging in NVFlare",
+    "label": "Existing",
+    "takeaway": "Audit coverage comes from explicit audit calls; diagnostic, experiment and metrics outputs do not supply missing audit events.",
+    "bullets": [],
+    "table": {
+      "headers": [
+        "Category",
+        "Question it answers",
+        "Components",
+        "Typical output"
+      ],
+      "rows": [
+        [
+          "Audit logging",
+          "Who performed an action, on which resource, and what happened?",
+          "Auditor, AuditService",
+          "audit.log; current coverage depends on explicit audit calls."
+        ],
+        [
+          "Diagnostic logging",
+          "What is the software doing, and why did it fail?",
+          "Python logging, FLComponent.log_*",
+          "Console, log.txt, error_log.txt, log.json, log_fl.txt"
+        ],
+        [
+          "Training and experiment logging",
+          "How is the model performing?",
+          "MetricsArtifactWriter; optional TensorBoard, MLflow and WandB integrations",
+          "Loss/accuracy, round summaries, experiment records"
+        ],
+        [
+          "Operational telemetry",
+          "How is the system or job performing?",
+          "System/job metrics collectors and publishers",
+          "Event counts and operation timings, including resource checks"
+        ]
+      ],
+      "column_widths": [
+        2.15,
+        3.1,
+        3.4,
+        3.28
+      ],
+      "font_size": 15.5,
+      "line_spacing": 1.0,
+      "cell_margin_y": 0.02,
+      "header_height": 0.4
+    },
+    "notes": "The four-category table establishes the scope of this discussion. The audit path is Auditor/AuditService and explicit producer calls. The detailed slides show where actor, resource and outcome evidence is incomplete. Diagnostic text, JSON, error-only and filtered files are handlers or views of Python logging; changing their formatting does not add missing audit events. MetricsArtifactWriter emits round/summary artifacts, and TensorBoard, MLflow and WandB integrations are optional. Operational collectors/publishers provide event counts and operation timings, including resource-check timing; they do not directly sample hardware utilization. Log streaming transports existing records and secure exception formatting controls diagnostic detail. The inventory was source-checked at historical main commit 2d2d6f7ac. The detailed audit walkthrough remains pinned to f787dd919.",
+    "sources": [
+      "https://github.com/NVIDIA/NVFlare/blob/2d2d6f7acc43e81b1d181ff4c2fb8cccfba54e31/nvflare/apis/fl_component.py",
+      "https://github.com/NVIDIA/NVFlare/blob/2d2d6f7acc43e81b1d181ff4c2fb8cccfba54e31/nvflare/fuel/sec/audit.py",
+      "https://github.com/NVIDIA/NVFlare/blob/2d2d6f7acc43e81b1d181ff4c2fb8cccfba54e31/nvflare/fuel/utils/log_config.json",
+      "https://github.com/NVIDIA/NVFlare/blob/2d2d6f7acc43e81b1d181ff4c2fb8cccfba54e31/nvflare/app_common/widgets/metrics_artifact_writer.py",
+      "https://github.com/NVIDIA/NVFlare/blob/2d2d6f7acc43e81b1d181ff4c2fb8cccfba54e31/nvflare/app_common/tracking/log_writer.py",
+      "https://github.com/NVIDIA/NVFlare/blob/2d2d6f7acc43e81b1d181ff4c2fb8cccfba54e31/nvflare/metrics/job_metrics_collector.py",
+      "https://github.com/NVIDIA/NVFlare/blob/2d2d6f7acc43e81b1d181ff4c2fb8cccfba54e31/nvflare/metrics/system_metrics_collector.py"
+    ],
+    "source_checked": "2026-11-10",
+    "source_label": "Source: NVFlare main 2d2d6f7ac logging, analytics and metrics components"
+  },
+  {
+    "id": 3,
+    "title": "How selected events reach the audit file",
+    "label": "Existing",
+    "takeaway": "Application code must explicitly request an entry; the writer does not observe every action.",
+    "bullets": [
+      "Command, policy and task producers choose which observations reach Auditor or AuditService.",
+      "Default destinations: <workspace>/audit.log and <workspace>/<job_id>/audit.log; output-root overrides and sub-worker placement qualify these paths."
+    ],
+    "notes": "Auditing starts automatically in normal deployments, but event coverage depends on explicit instrumentation. Server/client startup initializes AuditService, and job processes initialize their audit destination. Existing command and task calls run in their built-in processing; additional observations require additional producer calls. The table shows alternative paths, not one mandatory chain: CommandAudit obtains an Auditor and calls it directly; component authorization uses AuditService; job producers often use add_job_audit_event to extract FLContext metadata. AuditService maintains a process-local auditor reference and wrapper calls; Auditor owns the open file. The shown destinations are defaults: output-root environment variables can redirect them, some client sub-workers share the site-level destination, and simulator auditing is normally a no-op. Improving the writer cannot close a coverage gap where no producer calls the audit API.",
+    "sources": [
+      "https://github.com/NVIDIA/NVFlare/blob/f787dd919bee1f98e1f0f36ecb9b4c37b6f66154/nvflare/fuel/sec/audit.py#L28-L142",
+      "https://github.com/NVIDIA/NVFlare/blob/f787dd919bee1f98e1f0f36ecb9b4c37b6f66154/nvflare/apis/utils/fl_context_utils.py#L114-L122",
+      "https://github.com/NVIDIA/NVFlare/blob/f787dd919bee1f98e1f0f36ecb9b4c37b6f66154/nvflare/private/fed/utils/fed_utils.py"
+    ],
+    "table": {
+      "headers": [
+        "Component",
+        "Role",
+        "Actual call path"
+      ],
+      "rows": [
+        [
+          "Command / policy code",
+          "Records admin commands or permission checks",
+          "Calls Auditor directly or through AuditService"
+        ],
+        [
+          "Job audit helper (optional)",
+          "Extracts job/task metadata from FLContext",
+          "add_job_audit_event → AuditService"
+        ],
+        [
+          "AuditService",
+          "Holds one process’s Auditor reference",
+          "Returns the Auditor or forwards an event"
+        ],
+        [
+          "Auditor",
+          "Formats, appends and flushes an entry",
+          "add_event / add_job_event → local file"
+        ]
+      ]
+    },
+    "source_checked": "2026-11-10",
+    "source_label": "Code: audit.py · fl_context_utils.py · CommandAudit and task producers",
+    "source_checks": {
+      "https://github.com/NVIDIA/NVFlare/blob/f787dd919bee1f98e1f0f36ecb9b4c37b6f66154/nvflare/fuel/sec/audit.py#L28-L142": "2026-11-10",
+      "https://github.com/NVIDIA/NVFlare/blob/f787dd919bee1f98e1f0f36ecb9b4c37b6f66154/nvflare/apis/utils/fl_context_utils.py#L114-L122": "2026-11-10",
+      "https://github.com/NVIDIA/NVFlare/blob/f787dd919bee1f98e1f0f36ecb9b4c37b6f66154/nvflare/private/fed/utils/fed_utils.py": "2026-11-10"
+    },
+    "callout": "Auditing starts automatically in normal deployments, but event coverage depends on explicit instrumentation."
+  },
+  {
+    "id": 4,
+    "title": "The writer is small and synchronous",
+    "label": "Existing",
+    "takeaway": "The caller waits while the writer formats, appends and flushes an entry under its thread lock.",
+    "bullets": [
+      "Formatting, write() and flush() run in the caller’s critical path; slow storage delays the caller.",
+      "The lock serializes threads sharing one Auditor; it provides no cross-process file coordination.",
+      "flush() runs per entry; no fsync() or power-loss durability guarantee is provided.",
+      "No retry, rotation or audit-health alert. Open/write/flush failures can propagate to callers."
+    ],
+    "notes": "Auditor opens the destination in append mode, creating it immediately if needed and retaining existing contents on reopening. The per-instance thread lock covers formatting, writing and flushing. Storage latency therefore reaches the caller. The lock does not coordinate independent Auditor instances or processes. Per-entry flush transfers Python-buffered text to the operating system; no fsync call establishes synchronization to storage. Event-ID generation and flush completion do not establish power-loss durability. The writer provides no rotation, retry/recovery or separate health/alert state; open/write/flush failures can escape to callers. These are the implementation boundaries to resolve before promising stronger persistence semantics.",
+    "sources": [
+      "https://github.com/NVIDIA/NVFlare/blob/f787dd919bee1f98e1f0f36ecb9b4c37b6f66154/nvflare/fuel/sec/audit.py#L28-L142"
+    ],
+    "code": "self.audit_file = open(audit_file_name, \"a\")\nself._lock = threading.Lock()\n\n# Inside add_event():\nwith self._lock:\n    # ... generate event ID and line ...\n    self.audit_file.write(line + \"\\n\")\n    self.audit_file.flush()\n    return str(event_id)",
+    "code_size": 14,
+    "source_checked": "2026-11-10",
+    "source_label": "Code: nvflare/fuel/sec/audit.py · baseline f787dd919"
+  },
+  {
+    "id": 5,
+    "title": "Current text format: command and job records",
+    "label": "Existing",
+    "takeaway": "Headers are concatenated; the optional message is raw trailing text.",
+    "bullets": [
+      "E = generated UUID; R = caller-supplied reference; T = local timestamp without an offset.",
+      "U = user; J = job; S = optional scope/group; A = command or task name#task ID.",
+      "Message text follows the headers directly; there is no [M:] wrapper or escaping."
+    ],
+    "notes": "The two Auditor APIs produce different record shapes. IDs shown here are abbreviated examples. The first entry is a command; the second is a job/task observation. Its R=S1 identifies a separate server event, not command C0. Scope is the optional configured job execution scope/group. Auditor concatenates headers and message into one line; values and message text are not escaped, so embedded newlines can break physical record boundaries. R is an untyped caller-supplied string: task exchanges commonly use an earlier event ID, while some component-policy calls use a job ID. This ambiguity motivates typed references in the proposed record.",
+    "sources": [
+      "https://github.com/NVIDIA/NVFlare/blob/f787dd919bee1f98e1f0f36ecb9b4c37b6f66154/nvflare/fuel/sec/audit.py#L28-L142",
+      "https://github.com/NVIDIA/NVFlare/blob/f787dd919bee1f98e1f0f36ecb9b4c37b6f66154/nvflare/apis/utils/fl_context_utils.py#L114-L122",
+      "https://github.com/NVIDIA/NVFlare/blob/f787dd919bee1f98e1f0f36ecb9b4c37b6f66154/nvflare/app_common/widgets/component_path_authorizer.py#L130-L144"
+    ],
+    "code": "# Short example IDs; real E values are UUIDs\n[E:C0][T:2026-11-05 10:00:00][U:alice][A:submit_job]\n\n[E:C1][R:S1][T:2026-11-05 10:00:01]\n[S:scope-a][J:J42][A:train#T1]received task\n# Job record is wrapped here; actual output is one line.",
+    "source_checked": "2026-11-10",
+    "source_label": "Code: audit.py · job-context helper · component policy auditing"
+  },
+  {
+    "id": 6,
+    "title": "Which fields does each event contain?",
+    "label": "Existing",
+    "takeaway": "add_event() records command/policy events; add_job_event() records job/task events.",
+    "bullets": [],
+    "table_y": 2.85,
+    "table": {
+      "height": 3.35,
+      "headers": [
+        "Field",
+        "Command / policy",
+        "Job / task"
+      ],
+      "rows": [
+        [
+          "E — Event ID",
+          "Always generated",
+          "Always generated"
+        ],
+        [
+          "T — Timestamp",
+          "Always generated",
+          "Always generated"
+        ],
+        [
+          "U — User",
+          "Always emitted",
+          "Not emitted"
+        ],
+        [
+          "A — Action",
+          "Always emitted",
+          "If task_name is nonempty"
+        ],
+        [
+          "J — Job ID",
+          "Not emitted",
+          "Always emitted"
+        ],
+        [
+          "S — Scope",
+          "Not emitted",
+          "If nonempty"
+        ],
+        [
+          "R — Reference",
+          "If nonempty",
+          "If nonempty"
+        ],
+        [
+          "Message text",
+          "Optional trailing text",
+          "Optional trailing text"
+        ]
+      ]
+    },
+    "notes": "This table describes each event successfully written by the current Auditor, not a schema enforced for all event types. General and job events use different shapes. The job action, when emitted, is task_name#task_id; the writer does not require a nonempty task_id. Generated E and T do not prove persistence. Always emitted means the header is formatted even when the supplied value is empty or otherwise unsuitable. Optional means omitted when the supplied value is falsey. Message text is appended directly and has no [M:] wrapper. Calls excluded by action or made without an initialized/open auditor may produce no event at all. The context helper may supply question-mark placeholders rather than omit task and scope metadata.",
+    "sources": [
+      "https://github.com/NVIDIA/NVFlare/blob/f787dd919bee1f98e1f0f36ecb9b4c37b6f66154/nvflare/fuel/sec/audit.py#L43-L89",
+      "https://github.com/NVIDIA/NVFlare/blob/f787dd919bee1f98e1f0f36ecb9b4c37b6f66154/nvflare/apis/utils/fl_context_utils.py#L114-L122"
+    ],
+    "callout": "Header presence ≠ a valid value. The job-context helper may use ? for unknown task/scope values.",
+    "source_checked": "2026-11-10",
+    "source_label": "Code: audit.py and fl_context_utils.py · baseline f787dd919"
+  },
+  {
+    "id": 7,
+    "title": "What current records leave unknown",
+    "label": "Existing",
+    "takeaway": "Incomplete capture, ambiguous outcomes and limited persistence guarantees constrain audit evidence.",
+    "bullets": [
+      "Coverage: selected milestones are audited; rejected commands and terminal task decisions may be absent.",
+      "Semantics: user/job headers can be empty or placeholders; a receipt message does not establish acceptance.",
+      "Diagnostic errors do not automatically produce matching audit entries.",
+      "Persistence: no write-failure retry, rotation, retention policy or audit-health alert."
+    ],
+    "notes": "These gaps follow from the preceding API and file behavior. Server command auditing runs after authentication and authorization, so rejections before that filter are missed. Job producers record selected milestones without consistently recording terminal accepted/rejected outcomes. Header presence does not validate its value, and the context helper can substitute question marks. Local timestamps lack offsets, raw text permits ambiguous record boundaries, and R has no enforced identifier type. The local writer has no rotation, retention policy, write recovery or separate health reporting. The next slide traces the resulting distinction between receiving a result and accepting it.",
+    "sources": [
+      "https://github.com/NVIDIA/NVFlare/blob/f787dd919bee1f98e1f0f36ecb9b4c37b6f66154/nvflare/fuel/sec/audit.py#L28-L142",
+      "https://github.com/NVIDIA/NVFlare/blob/f787dd919bee1f98e1f0f36ecb9b4c37b6f66154/nvflare/private/fed/app/client/sub_worker_process.py#L318-L319"
+    ],
+    "body_font_size": 22,
+    "source_checked": "2026-11-10",
+    "source_label": "Code: audit writer, command filters and server/client task handlers"
+  },
+  {
+    "id": 8,
+    "title": "What each task-handoff event actually proves",
+    "label": "Existing",
+    "takeaway": "Task handoffs link related events. An invalid reply can be logged as received and then rejected.",
+    "bullets": [],
+    "notes": "This source-traced exchange uses shortened event IDs S1, C1, C2 and S2; displayed messages are abbreviated. The server writes S1 while preparing the assignment and places S1 in its outgoing task header. The client writes C1 with R=S1 on receipt. Executor invocation is also audited but omitted here to focus on handoffs. The client writes C2 with R=S1 while preparing its reply and attaches C2 to it. The server writes S2 with R=C2 on receipt. The graph is S1→C1, S1→C2 and C2→S2; R is not an immediate-predecessor chain. Neither “sent task” nor “submit result OK” proves network delivery or downstream acceptance.\n\nThe last row is an invalid-submission variant, not the expected outcome of a valid J42 exchange. ServerRunner writes the receipt audit before checking the incoming peer context against the current job. If peer context reports J41 while the server expects J42, it logs a diagnostic mismatch and returns without accepting the result; a separate rejection audit entry is not guaranteed. The receipt event alone therefore leaves the outcome unknown. The sender’s job ID comes from peer context, not necessarily the result body. Receipt auditing also precedes resolution of payload references and later peer/attempt/workflow/submission checks, so it proves neither full payload availability nor validation success. Early wrong-job rejection precedes attempt decoding: do not infer attempt A1 from this branch. A later “finished processing received result” message uses diagnostic logging. The proposed S3 rejection record will link to S2 and distinguish receipt from rejection while leaving unobserved attempt identity null.",
+    "sources": [
+      "https://github.com/NVIDIA/NVFlare/blob/f787dd919bee1f98e1f0f36ecb9b4c37b6f66154/nvflare/private/fed/server/server_runner.py#L367-L376",
+      "https://github.com/NVIDIA/NVFlare/blob/f787dd919bee1f98e1f0f36ecb9b4c37b6f66154/nvflare/private/fed/client/client_runner.py#L299-L300",
+      "https://github.com/NVIDIA/NVFlare/blob/f787dd919bee1f98e1f0f36ecb9b4c37b6f66154/nvflare/private/fed/client/client_runner.py#L239-L243",
+      "https://github.com/NVIDIA/NVFlare/blob/f787dd919bee1f98e1f0f36ecb9b4c37b6f66154/nvflare/private/fed/server/server_runner.py#L473-L515"
+    ],
+    "table_y": 2.85,
+    "table": {
+      "height": 3.3,
+      "font_size": 15,
+      "headers": [
+        "Step",
+        "Audit entry / processing",
+        "What the evidence establishes"
+      ],
+      "rows": [
+        [
+          "1. Server prepares task",
+          "[E:S1] sent task…",
+          "Assignment prepared; delivery unproven."
+        ],
+        [
+          "2. Client receives task",
+          "[E:C1][R:S1] received task…",
+          "Client observed the task assignment S1."
+        ],
+        [
+          "3. Client prepares reply",
+          "[E:C2][R:S1] submit result OK",
+          "Reply for S1 prepared; server receipt unproven."
+        ],
+        [
+          "4. Server observes reply",
+          "[E:S2][R:C2] received result…",
+          "Submission observed; acceptance still unknown."
+        ],
+        [
+          "5. Invalid-reply example",
+          "Reply reports J41; server expects J42",
+          "Rejected; a separate audit entry is not guaranteed."
+        ]
+      ]
+    },
+    "callout": "R links related work, not necessarily the preceding entry. S = server, C = client; IDs are shortened.",
+    "source_checked": "2026-11-10",
+    "source_label": "Code: server_runner.py and client_runner.py · baseline f787dd919"
+  }
+]

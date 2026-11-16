@@ -1,0 +1,193 @@
+[
+  {
+    "id": 21,
+    "title": "Healthcare audit standards: content, exchange and protection",
+    "takeaway": "An audit record describes one event; an audit trail preserves related history. Standards address different layers.",
+    "table": {
+      "headers": [
+        "Standard",
+        "What it specifies",
+        "Role in our design"
+      ],
+      "rows": [
+        [
+          "ISO 27789:2021",
+          "Electronic health record (EHR) audit trails and their event records.",
+          "Define event types and the evidence each must contain."
+        ],
+        [
+          "ASTM E2147-18",
+          "Healthcare access/disclosure audit contents and preservation.",
+          "Reference for healthcare-specific record requirements."
+        ],
+        [
+          "DICOM PS3.15, A.5",
+          "Coded audit messages: participants, objects, time and outcome.",
+          "A concrete message structure for interoperability mapping."
+        ],
+        [
+          "IHE ATNA",
+          "Audit-event generation, secure exchange and repository mechanisms.",
+          "Reference for optional collection and secure transport."
+        ],
+        [
+          "HL7 FHIR AuditEvent",
+          "Individual audit-event records: actors, actions, entities, time and outcome.",
+          "Map our record meanings to a healthcare exchange resource."
+        ]
+      ],
+      "column_widths": [
+        2.65,
+        4.55,
+        4.73
+      ],
+      "font_size": 16,
+      "line_spacing": 1.0,
+      "cell_margin_y": 0.02,
+      "header_height": 0.38
+    },
+    "notes": "This table distinguishes five related references. An audit record describes one event; an audit trail preserves the related history represented by those records. The references address different layers: FHIR AuditEvent defines individual audit records; ISO 27789 covers audit trails and their constituent records; IHE ATNA covers supporting event generation, exchange and audit-record repository mechanisms. A record format alone does not establish a complete trail. Required events must be emitted, related and preserved by the overall system. ISO 27789:2021 is the published second edition for EHR audit-trigger events, audit data and cross-system audit trails; ISO marks it for revision and lists a replacement under development. Its scope concerns EHR actions and identifies linked health-record segments rather than embedding their contents. ASTM E2147-18 specifies healthcare audit and disclosure records and their preservation; U.S. certification incorporates specified sections, not every provision of the full standard. DICOM PS3.15 Annex A.5 supplies coded audit-message structures with participants, affected objects, event time and outcome; required elements depend on the event definition. IHE Audit Trail and Node Authentication (ATNA) defines integration actors for generating and exchanging audit events and retaining them in an audit record repository, alongside authentication and secure communications. ITI-20 includes syslog transport options, with TLS recommended; an integration must select and implement the applicable options. FHIR R5 AuditEvent represents audit information using agent, action, entity, recorded, outcome and source; cardinalities and implementation profiles matter. Recording time and occurrence time are distinct. None of these references automatically supplies trusted model identity or complete model/job/task coverage. Our proposed record would need explicit event mappings and any required extensions.",
+    "sources": [
+      "https://www.iso.org/standard/75313.html",
+      "https://store.astm.org/e2147-18.html",
+      "https://dicom.nema.org/medical/dicom/2026b/output/html/part15.html#sect_A.5",
+      "https://profiles.ihe.net/ITI/TF/Volume1/ch-9.html",
+      "https://profiles.ihe.net/ITI/TF/Volume2/ITI-20.html",
+      "https://hl7.org/fhir/R5/auditevent.html"
+    ],
+    "source_label": "Standards: ISO 27789 · ASTM E2147 · DICOM PS3.15 · IHE ATNA · FHIR AuditEvent",
+    "label": "Industry needs",
+    "bullets": [],
+    "source_checked": "2026-11-10",
+    "source_checks": {
+      "https://www.iso.org/standard/75313.html": "2026-11-10",
+      "https://store.astm.org/e2147-18.html": "2026-11-10",
+      "https://dicom.nema.org/medical/dicom/2026b/output/html/part15.html#sect_A.5": "2026-11-10",
+      "https://profiles.ihe.net/ITI/TF/Volume2/ITI-20.html": "2026-11-10",
+      "https://hl7.org/fhir/R5/auditevent.html": "2026-11-10",
+      "https://profiles.ihe.net/ITI/TF/Volume1/ch-9.html": "2026-11-10"
+    },
+    "appendix": true
+  },
+  {
+    "id": 22,
+    "title": "U.S. certified health IT: audit requirements",
+    "takeaway": "For U.S. certified Health IT Modules, EHI (electronic health information) auditing covers clocks, capture and integrity.",
+    "table": {
+      "headers": [
+        "Requirement",
+        "Certified capability",
+        "Design implication"
+      ],
+      "rows": [
+        [
+          "EHI actions / ASTM content",
+          "Record specified EHI actions and changes to user privileges.",
+          "Define event contents and authoritative capture points."
+        ],
+        [
+          "Synchronized timestamps",
+          "Use a system clock synchronized with Network Time Protocol.",
+          "UTC formatting alone does not synchronize clocks."
+        ],
+        [
+          "Default capture / status",
+          "Enable logs; record audit status + applicable end-user-device EHI-encryption status.",
+          "Define site policy and explicit configuration-change events."
+        ],
+        [
+          "Disabling permissions",
+          "If disabling is allowed, restrict it to a limited set of users.",
+          "Prevent ordinary workloads from weakening audit policy."
+        ],
+        [
+          "Protection / detection",
+          "Prevent changes, overwrites or deletions; detect altered logs.",
+          "Need storage protection and tamper-detection controls."
+        ]
+      ],
+      "column_widths": [
+        2.65,
+        4.55,
+        4.73
+      ],
+      "font_size": 16,
+      "line_spacing": 1.0,
+      "cell_margin_y": 0.02,
+      "header_height": 0.38
+    },
+    "notes": "EHI means electronic health information. This slide summarizes the audit-related criterion for U.S. certified Health IT Modules, principally 45 CFR 170.315(d)(2), with audit-content and synchronized-clock references at 170.210(e), (g) and (h). The criterion requires actions related to EHI and changes to user privileges to be recorded using the specified sections of ASTM E2147-18. Audit log status must be recorded where the technology permits auditing to be disabled. Applicable locally stored EHI encryption-status changes must also be recorded; exemptions and scope qualifications are described in the official guide. Required capture is enabled by default. If disabling is permitted, the capability is limited to a restricted set of users. Recorded actions and statuses are protected against alteration, overwriting or deletion by the technology, and alteration must be detectable, including changes made outside application control. The guide distinguishes this protection from policy-governed purging after an applicable retention period. It does not impose one general retention duration here. Timestamps use an NTP-synchronized system clock; choosing UTC alone is insufficient. A hash is one possible tamper-detection mechanism, not proof of all other controls. These capabilities inform the proposed audit design.",
+    "sources": [
+      "https://healthit.gov/test-method/auditable-events-and-tamper-resistance/",
+      "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-D/part-170/subpart-C/section-170.315",
+      "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-D/part-170/subpart-B/section-170.210"
+    ],
+    "source_label": "U.S. certification: 45 CFR 170.315(d)(2) · 170.210(e), (g), (h) · official ONC guide",
+    "label": "Industry needs",
+    "bullets": [],
+    "source_checked": "2026-11-10",
+    "source_checks": {
+      "https://healthit.gov/test-method/auditable-events-and-tamper-resistance/": "2026-11-10",
+      "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-D/part-170/subpart-C/section-170.315": "2026-11-10",
+      "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-D/part-170/subpart-B/section-170.210": "2026-11-10"
+    },
+    "appendix": true
+  },
+  {
+    "id": 23,
+    "title": "EHR vendor examples: documented audit mechanisms",
+    "takeaway": "Real products capture and persist audit events differently; public documentation reveals only part of each implementation.",
+    "table": {
+      "headers": [
+        "Vendor",
+        "Documented mechanism",
+        "Public-information limit"
+      ],
+      "rows": [
+        [
+          "Epic",
+          "Clarity database extracts; selected events in CEF/LEEF/syslog formats.",
+          "An extraction source does not identify every audit store."
+        ],
+        [
+          "Oracle Health",
+          "Millennium audit events → repository; optional listener forwarding.",
+          "Public references do not expose the internal storage schema."
+        ],
+        [
+          "MEDITECH",
+          "Application audit trails; REST API audit records in SQL storage.",
+          "REST SQL storage does not identify every native EHR log store."
+        ]
+      ],
+      "column_widths": [
+        2.05,
+        5.0,
+        4.88
+      ],
+      "font_size": 16,
+      "line_spacing": 1.0,
+      "cell_margin_y": 0.02,
+      "header_height": 0.38
+    },
+    "callout": "CEF/LEEF/syslog are event-feed formats; public documentation does not establish complete audit coverage.",
+    "notes": "The vendor comparison concerns audit generation, persistence and transfer, not how a person reviews logs. Epic documents an Access Logging extract script that reads key patient, user and encounter event data from an organization’s Clarity database into a pipe-delimited file. It separately documents near-real-time forwarding of selected security/privacy events in CEF, LEEF or RFC 5424 syslog. CEF and LEEF are event-feed formats; this is not evidence that every event is forwarded or delivery is lossless. Clarity is a documented extraction source, not necessarily the sole or original audit store. Oracle’s 2026 certification disclosure documents native product auditing, an optional Privacy Analytics Listener for Millennium event forwarding, and Oracle Health Privacy Analytics as a repository. These descriptions do not reveal queueing, write synchronization, raw schemas or storage algorithms. Product versions and configurations differ. MEDITECH documents native application audit trails and separately states that patient-access REST infrastructure has audit records within its SQL database, alongside EHR auditing. Its September 2026 Expanse parameter guide describes capture/category and age-based purge settings. Therefore configuration affects coverage and retention; it is incorrect to generalize REST SQL storage to every native log. None of the vendor sources establishes universal actor provenance, complete raw audit payloads, fixed retention, or end-to-end lossless guarantees. The supported design pattern is explicit event producers, a capture/storage path, and optional forwarding, with documented coverage and integrity limits.",
+    "sources": [
+      "https://open.epic.com/Interface/Other",
+      "https://www.oracle.com/a/ocom/docs/industries/healthcare/certified-health-it-transparency-disclosure-information.pdf",
+      "https://home.meditech.com/en/d/restapiresources/pages/patientaccessapisfaqs.htm",
+      "https://home.meditech.com/en/d/cstrainingresources/otherfiles/allebbpaudittrailparameterexpanse.pdf"
+    ],
+    "source_label": "Vendor documentation: Epic interface catalog · Oracle 2026 disclosure · MEDITECH API/audit settings",
+    "label": "Industry needs",
+    "bullets": [],
+    "source_checked": "2026-11-10",
+    "source_checks": {
+      "https://open.epic.com/Interface/Other": "2026-11-10",
+      "https://www.oracle.com/a/ocom/docs/industries/healthcare/certified-health-it-transparency-disclosure-information.pdf": "2026-11-10",
+      "https://home.meditech.com/en/d/restapiresources/pages/patientaccessapisfaqs.htm": "2026-11-10",
+      "https://home.meditech.com/en/d/cstrainingresources/otherfiles/allebbpaudittrailparameterexpanse.pdf": "2026-11-10"
+    },
+    "appendix": true
+  }
+]

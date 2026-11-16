@@ -1,0 +1,60 @@
+[
+  {
+    "id": 25,
+    "title": "Finance: recordkeeping rules and event standards",
+    "label": "Industry needs",
+    "takeaway": "Broker-dealer preservation, regulatory reporting and trading messages address different evidence needs.",
+    "bullets": [],
+    "table": {
+      "headers": [
+        "Rule / standard",
+        "What it specifies",
+        "Design implication"
+      ],
+      "rows": [
+        [
+          "SEC Rule 17a-4(f)",
+          "Reconstructable audit trail OR write-once/read-many storage.",
+          "Link changes and preserve recoverable content in external storage."
+        ],
+        [
+          "FINRA Rule 4511",
+          "Required books and records: retention periods and storage media.",
+          "Configure retention and retrieval of required records."
+        ],
+        [
+          "Consolidated Audit Trail (CAT)",
+          "Structured order events with IDs, event times and lifecycle linkage.",
+          "Use typed IDs, explicit event phases and precise time semantics."
+        ],
+        [
+          "FIX Protocol",
+          "Standard trading-message structure and lifecycle semantics.",
+          "Map trading state; preserve records through a separate storage layer."
+        ]
+      ],
+      "column_widths": [
+        2.7,
+        4.4,
+        4.83
+      ],
+      "font_size": 16,
+      "line_spacing": 1.0,
+      "cell_margin_y": 0.02,
+      "header_height": 0.38
+    },
+    "callout": "Scope: required broker-dealer records and reportable order events.",
+    "notes": "These references address different layers of a broker-dealer audit design. SEC Rule 17a-4(f)(2)(i) permits two preservation routes: a complete time-stamped audit trail allowing recreation of an original after modification/deletion, or preservation in a non-rewriteable, non-erasable format, commonly called write once, read many (WORM). They are alternatives, not two simultaneous requirements. The audit-trail route covers record modifications/deletions, creation/change times, applicable individual identity and other information needed to preserve authenticity and recreate the original. Other provisions address storage-process completeness/accuracy, usable copies and redundancy. A digest or event history without recoverable content cannot recreate a deleted original. FINRA Rule 4511 requires members to make and preserve required books and records; its six-year provision applies when no other applicable retention period is specified. It requires the format/media for FINRA-required records to comply with Rule 17a-4. Retention periods therefore depend on the record category. CAT means Consolidated Audit Trail. Its Industry Member specifications define reportable-event fields, file formats and linkage. The transaction specification reviewed is v4.2.0 r4, published October 21, 2026. Event types, order/event identifiers, event timestamps, correction/feedback rules and cross-event references are concrete examples of a typed event contract. Required fields and timestamp meanings depend on event type. This does not mean every field or financial activity is CAT-reportable. FIX is the Financial Information eXchange Protocol: an application-layer standard for trading-message structure, contents and workflows. FIX supplies business-state evidence; record preservation requires storage controls. The model-review scenario assumes its package has been classified as an applicable required record; it does not classify every financial model. NVFlare can emit its observed operations and correlated resource identifiers. External systems must supply unobserved changes and the preservation/reconstruction capability.",
+    "sources": [
+      "https://www.ecfr.gov/current/title-17/chapter-II/part-240/section-240.17a-4",
+      "https://www.sec.gov/rules-regulations/staff-guidance/trading-markets-frequently-asked-questions/rule-amendments-broker",
+      "https://www.finra.org/rules-guidance/rulebooks/finra-rules/4511",
+      "https://www.catnmsplan.com/specifications/im",
+      "https://www.catnmsplan.com/sites/default/files/2026-10/10.21.26_CAT_Reporting_Technical_Specifications_for_Industry_Members_v4.2.0r4_CLEAN.pdf",
+      "https://fixtrading.org/standards/fix-protocol/"
+    ],
+    "source_checked": "2026-11-10",
+    "source_label": "Finance references: SEC 17a-4(f) · FINRA 4511 · CAT · FIX; full links in notes",
+    "appendix": true
+  }
+]

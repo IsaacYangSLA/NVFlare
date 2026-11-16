@@ -1,0 +1,121 @@
+[
+  {
+    "id": 9,
+    "title": "Common practice: make an action reconstructable",
+    "label": "Industry needs",
+    "takeaway": "Each audit event should capture: Actor + action + resource + timestamp + outcome.",
+    "bullets": [
+      "Industries use comparable meanings with different field names: a shared checklist, not one universal schema."
+    ],
+    "table": {
+      "headers": [
+        "Essential field",
+        "Existing record",
+        "Clearer evidence example"
+      ],
+      "rows": [
+        [
+          "Actor",
+          "U for commands; absent for jobs",
+          "Who acted: server validator"
+        ],
+        [
+          "Action",
+          "A names a command or task",
+          "What happened: validate result"
+        ],
+        [
+          "Resource",
+          "J and task ID in A; no attempt field",
+          "On what: J42 / T1; attempt unknown"
+        ],
+        [
+          "Timestamp",
+          "T is local time without an offset",
+          "When: 2026-11-05 18:00 UTC"
+        ],
+        [
+          "Outcome",
+          "Free text when supplied",
+          "Result: rejected for wrong job"
+        ]
+      ],
+      "font_size": 16,
+      "height": 3.0
+    },
+    "notes": "The five essentials are a starting checklist, not one universal regulatory schema: actor, action, resource, timestamp and outcome. The middle column connects the checklist to the current headers introduced on slides 5 and 6. U is only present on command/policy records; the current job/task format does not identify an actor. A names a command or task rather than a standardized operation such as validation. J and the task identifier describe part of a resource, but a task attempt needs its own identity to distinguish retries. Timezone-aware UTC and clock synchronization are separate requirements. The outcome must describe the named action: receipt is not acceptance. For a trail, source/site and event references establish where related observations came from. For file-related incidents, version IDs identify exact content; retained bytes enable later recovery. An ID or digest alone cannot reconstruct deleted bytes. OWASP describes when, where, who and what, including interaction identifiers and results. OpenTelemetry supports structured log attributes and correlation; NIST discusses enterprise log management. The main section now turns to the proposed design. The appendix contains healthcare and finance standards, vendor mechanisms and illustrative record examples. The model incidents are illustrative. Industry formats do not require this literal word order or one universal five-field schema. For example, HL7 FHIR R5 AuditEvent uses agent for the actor, entity for the affected object, action for the operation, recorded for recording time and outcome for the result; field cardinalities vary by element and profile. Financial order trails use specialized order and event identifiers and may convey outcomes through linked acceptance, rejection or execution events rather than a result field in every message. In the early wrong-job rejection used here and on slide 11, attempt identity has not been established. FHIR also distinguishes recording time from when an activity occurred; implementations must state which time they record.",
+    "sources": [
+      "https://cheatsheetseries.owasp.org/cheatsheets/Logging_Cheat_Sheet.html",
+      "https://opentelemetry.io/docs/specs/otel/logs/data-model/",
+      "https://csrc.nist.gov/pubs/sp/800/92/final",
+      "https://hl7.org/fhir/R5/auditevent.html"
+    ],
+    "source_checked": "2026-11-10",
+    "callout": "Link related events by ID and record artifact versions; artifact storage owns file retention.",
+    "body_font_size": 21,
+    "table_y": 3.3,
+    "source_label": "Guidance: OWASP Logging Cheat Sheet · OpenTelemetry log model · NIST SP 800-92",
+    "source_checks": {
+      "https://hl7.org/fhir/R5/auditevent.html": "2026-11-10"
+    }
+  },
+  {
+    "id": 24,
+    "title": "Healthcare example: audit model training across hospitals",
+    "label": "Industry needs",
+    "takeaway": "Illustrative case: hospital B uses model v2 although job J42 assigned v3 for task T1.",
+    "bullets": [
+      "Needed trail: assign model → load/verify model identity → run training → submit result → accept/reject.",
+      "Record context: site, job/task/attempt, model identity, timestamp and operation outcome.",
+      "Model loader: computes or verifies a digest (content fingerprint) of the model it loads, linked to job/task/attempt.",
+      "Audit writer: records that metadata without reading the model. Applications emit patient-access events where applicable."
+    ],
+    "notes": "This fictional federated-learning case defines the audit records needed when hospital B uses v2 although job J42 assigned v3 to task T1. The sequence is model assignment, loaded-model identification, task execution, result submission and server acceptance/rejection. Each event records known site/actor, job/task/attempt, model identity, timestamp and phase-specific outcome. Trusted model-loading code computes or verifies a digest of the actual model loaded and supplies that metadata. A digest identifies content but does not alone prove execution. The audit writer validates, sanitizes and persists the event without reading or hashing the model. Applications emit their own patient-data-access events where applicable, avoiding unnecessary raw patient data in central records. Missing producer events remain gaps. Healthcare standards and vendor examples on slides 21–23 guide the record contents and supporting controls. HHS audit controls supply healthcare context; they do not mandate model hashing.",
+    "sources": [
+      "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-C/part-164/subpart-C/section-164.312",
+      "https://www.hhs.gov/hipaa/for-professionals/compliance-enforcement/audit/protocol/index.html",
+      "https://github.com/IsaacYangSLA/NVFlare/blob/9111adf826b3e6795569c8770db336fa0a22aefe/docs/audit-improvement-program.md"
+    ],
+    "callout": "Model verification belongs to the application; the writer records metadata without reading model bytes.",
+    "body_font_size": 21,
+    "source_checks": {
+      "https://www.ecfr.gov/current/title-45/subtitle-A/subchapter-C/part-164/subpart-C/section-164.312": "2026-11-10",
+      "https://www.hhs.gov/hipaa/for-professionals/compliance-enforcement/audit/protocol/index.html": "2026-11-10"
+    },
+    "source_label": "Industry context: HHS audit controls, 45 CFR 164.312(b) · FL incident is illustrative",
+    "case_kind": "hospital",
+    "case_labels": [
+      "Assigned v3",
+      "Used v2"
+    ],
+    "appendix": true
+  },
+  {
+    "id": 27,
+    "title": "Finance example: recover an overwritten review package",
+    "label": "Industry needs",
+    "takeaway": "Illustrative case: a securities firm’s model/settings/review package v3 is replaced by v4 before an examination.",
+    "bullets": [
+      "Scope: for required securities records, one permitted storage approach keeps change history to recreate originals.",
+      "Question: who replaced review package v3, when, and can the firm produce the original?",
+      "Evidence: old/new version IDs, actor, time and a retrieval location; logs alone cannot recreate deleted files.",
+      "Responsibility: an external records system preserves or reconstructs v3; NVFlare reports its own operations."
+    ],
+    "notes": "This fictional case assumes the securities firm has determined that the package containing the model, settings and review materials is an in-scope required record. It does not classify every financial model as such. For electronically preserved broker-dealer records, SEC guidance describes two permitted preservation routes: the audit-trail alternative, which must permit reconstruction of an original after modification/deletion, and write-once/read-many storage, which prevents rewriting or erasing retained records. The audit-trail route calls for complete time-stamped modification/deletion history and identity where applicable. NVFlare reports its own observed actions; an external records system must supply replacement events, maintain required history and preserve or reconstruct the original v3 package. A version ID or content digest cannot recreate deleted bytes. These healthcare and finance examples motivate explicit outcomes, exact resource identity, linked observations and storage responsibilities. The proposed NVFlare pipeline in the main section supplies its part of that evidence.",
+    "sources": [
+      "https://www.sec.gov/investment/amendments-electronic-recordkeeping-requirements-broker-dealers",
+      "https://github.com/IsaacYangSLA/NVFlare/blob/9111adf826b3e6795569c8770db336fa0a22aefe/docs/audit-improvement-program.md"
+    ],
+    "body_font_size": 21,
+    "source_checks": {
+      "https://www.sec.gov/investment/amendments-electronic-recordkeeping-requirements-broker-dealers": "2026-11-10"
+    },
+    "source_label": "Industry context: SEC electronic recordkeeping guidance · In-scope required records only",
+    "case_kind": "finance",
+    "case_labels": [
+      "Original v3",
+      "Replaced by v4"
+    ],
+    "appendix": true
+  }
+]

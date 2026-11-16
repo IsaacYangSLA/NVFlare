@@ -1,0 +1,266 @@
+[
+  {
+    "id": 16,
+    "title": "Implementation scope: improve the full audit path",
+    "label": "Proposed",
+    "takeaway": "Keep the service/writer separation; improve the producers, configuration and retrieval around it.",
+    "bullets": [],
+    "table": {
+      "headers": [
+        "Area",
+        "Implementation change",
+        "Affected components"
+      ],
+      "rows": [
+        [
+          "Service / writer / contract",
+          "One validated event path; legacy adapters; safe serialization and write status.",
+          "AuditService and Auditor, including direct callers"
+        ],
+        [
+          "Runtime producers / helpers",
+          "Supply known context; record authoritative decisions and completion.",
+          "Authentication, admin, job, workflow and task code"
+        ],
+        [
+          "Startup / site configuration",
+          "Load site policy before auditing starts in every runtime process.",
+          "Parent, job, worker and client sub-worker startup"
+        ],
+        [
+          "File ownership / retrieval",
+          "One owner per file; inventory all owners and parts for authorized downloads.",
+          "Workspace paths, process lifecycle and download code"
+        ],
+        [
+          "Artifact / application integration",
+          "Emit model, package and checkpoint events from the component that owns them.",
+          "Persistors, job stores and application producers"
+        ]
+      ],
+      "column_widths": [
+        2.5,
+        5.1,
+        4.33
+      ],
+      "font_size": 15.5,
+      "line_spacing": 1.0,
+      "cell_margin_y": 0.02,
+      "header_height": 0.38
+    },
+    "callout": "Application developers add audit calls only for facts the framework cannot observe. For example, a custom training script knows which dataset version it selected; the audit writer does not.",
+    "notes": "Retain the service/writer separation and improve the complete path. One admission policy validates, bounds and sanitizes service and direct Auditor calls; compatibility adapters preserve existing entry points. Instrument authentication, authorization, admin, job, workflow and task decisions at their authoritative branches. Context helpers pass established actor provenance, workflow and attempt identity. Load trusted site policy before auditor initialization in every runtime process, without instantiating job-controlled code before security preflight or exposing policy through advertised site metadata. Job configuration cannot weaken site policy; simulator no-op remains the default. Ownership/layout changes ship with inventory and authorized retrieval, including overridden output roots. Add artifact metadata hooks to current persistors and job stores; isolate post-commit audit failures from storage rollback and cleanup. The writer does not fetch, read, hash or archive model files. Verified loaded-model identity and domain-specific access facts come from their owners; artifact storage retains file versions for recovery. Framework capture covers standard paths, while application developers add only facts the framework cannot observe. B1–B15 deliver these boundaries incrementally.",
+    "sources": [
+      "docs/audit-improvement-program.md",
+      "https://github.com/NVIDIA/NVFlare/blob/2d2d6f7acc43e81b1d181ff4c2fb8cccfba54e31/nvflare/fuel/sec/audit.py",
+      "https://github.com/NVIDIA/NVFlare/blob/2d2d6f7acc43e81b1d181ff4c2fb8cccfba54e31/nvflare/apis/utils/fl_context_utils.py",
+      "https://github.com/NVIDIA/NVFlare/blob/2d2d6f7acc43e81b1d181ff4c2fb8cccfba54e31/nvflare/private/fed/utils/fed_utils.py",
+      "https://github.com/NVIDIA/NVFlare/blob/2d2d6f7acc43e81b1d181ff4c2fb8cccfba54e31/nvflare/private/fed/server/server_runner.py",
+      "https://github.com/NVIDIA/NVFlare/blob/2d2d6f7acc43e81b1d181ff4c2fb8cccfba54e31/nvflare/app_opt/pt/file_model_persistor.py",
+      "https://github.com/NVIDIA/NVFlare/blob/2d2d6f7acc43e81b1d181ff4c2fb8cccfba54e31/nvflare/apis/impl/job_def_manager.py"
+    ],
+    "source_checked": "2026-11-10",
+    "source_label": "Discussion proposal: audit improvement program and current implementation boundaries",
+    "callout_height": 0.72,
+    "callout_font_size": 15
+  },
+  {
+    "id": 17,
+    "title": "Group A: core infrastructure",
+    "label": "Proposed",
+    "takeaway": "Build shared record support, then improve the writer and service behind compatible entry points.",
+    "bullets": [],
+    "table": {
+      "headers": [
+        "Stage",
+        "Deliverable"
+      ],
+      "rows": [
+        [
+          "B1",
+          "Shared record types, validation, redaction and serializers, initially inactive."
+        ],
+        [
+          "B2",
+          "Auditor: safe writes, locking, close behavior, failure health and optional synchronization."
+        ],
+        [
+          "B3",
+          "AuditService: structured API and legacy adapters; shared validation for direct and service calls."
+        ]
+      ],
+      "column_widths": [
+        1.0,
+        10.93
+      ],
+      "font_size": 18,
+      "line_spacing": 1.0,
+      "cell_margin_y": 0.02,
+      "header_height": 0.38
+    },
+    "callout": "Keep existing calls and text output working; merge one PR, then revise the next stage from refreshed main.",
+    "notes": "Reconfirm the baseline and event catalog before implementation. B1 adds inactive record types, event-specific validation, bounds, redaction and serializers; no runtime activation. Missing identity remains explicit and serializers do not infer outcomes. B2 hardens Auditor serialization/writing, lock/close lifecycle, initialization status and optional local synchronization. Keep text output, public entry points and default task behavior compatible. Failure health must be bounded, sanitized and nonrecursive. B3 adds structured AuditService entry points and legacy adapters while routing direct Auditor callers through the same admission policy. An allocated ID remains distinct from successful persistence. Each increment stays usable on its own; refresh main and revise the next stage after the predecessor merges rather than maintaining speculative dependent branches.",
+    "sources": [
+      "docs/audit-improvement-program.md",
+      "https://github.com/NVIDIA/NVFlare/blob/2d2d6f7acc43e81b1d181ff4c2fb8cccfba54e31/nvflare/fuel/sec/audit.py",
+      "https://github.com/NVIDIA/NVFlare/blob/2d2d6f7acc43e81b1d181ff4c2fb8cccfba54e31/nvflare/apis/utils/fl_context_utils.py",
+      "https://github.com/NVIDIA/NVFlare/blob/2d2d6f7acc43e81b1d181ff4c2fb8cccfba54e31/nvflare/private/fed/utils/fed_utils.py",
+      "https://github.com/NVIDIA/NVFlare/blob/2d2d6f7acc43e81b1d181ff4c2fb8cccfba54e31/nvflare/apis/controller_spec.py"
+    ],
+    "source_checked": "2026-11-10",
+    "source_label": "Discussion proposal: audit improvement program and current implementation boundaries"
+  },
+  {
+    "id": 18,
+    "title": "Group B: runtime integration",
+    "label": "Proposed",
+    "takeaway": "Load trusted settings, make new files retrievable, and pass context before expanding event coverage.",
+    "bullets": [],
+    "table": {
+      "headers": [
+        "Stage",
+        "Deliverable"
+      ],
+      "rows": [
+        [
+          "B4",
+          "Load trusted audit settings before initialization in every runtime process."
+        ],
+        [
+          "B5",
+          "Ship process/file ownership, inventory and authorized retrieval together."
+        ],
+        [
+          "B6",
+          "Add optional JSONL with readers, authorized downloads and workspace archives."
+        ],
+        [
+          "B7",
+          "Extend context helpers with established actor, job, workflow, task and attempt identity."
+        ]
+      ],
+      "column_widths": [
+        1.0,
+        10.93
+      ],
+      "font_size": 18,
+      "line_spacing": 1.0,
+      "cell_margin_y": 0.02,
+      "header_height": 0.38
+    },
+    "callout": "No early custom-code construction or advertised audit policy; new files ship with authorized retrieval.",
+    "notes": "B4 loads minimal typed settings from trusted site resources before auditor creation in parent, job, isolated-worker and client sub-worker processes. Do not instantiate job-controlled/custom components before security preflight, advertise local audit policy or let job configuration weaken it. Preserve simulator no-op. Reject unshipped capabilities before opening files or starting jobs. B5 ships one-owner files, process-instance IDs, inventory and authorized retrieval together, including every process and output-root override. B6 enables versioned JSONL only with readers, authorized downloads and local workspace-archive inclusion in the same increment. Text remains default with separate destinations; rollback preserves evidence and reader access. Remote collection/archive integration is later B12/B13, not a substitute for B6 retrieval. B7 forwards established actor provenance and runtime job/workflow/task/attempt IDs. Retransmission retains the assignment attempt; early rejection, malformed contexts and legacy peers may leave it unknown. Keep peer claims separate from established identity. Recheck these interfaces after each predecessor merges.",
+    "sources": [
+      "docs/audit-improvement-program.md",
+      "https://github.com/NVIDIA/NVFlare/blob/2d2d6f7acc43e81b1d181ff4c2fb8cccfba54e31/nvflare/private/fed/server/admin.py",
+      "https://github.com/NVIDIA/NVFlare/blob/2d2d6f7acc43e81b1d181ff4c2fb8cccfba54e31/nvflare/fuel/hci/server/audit.py",
+      "https://github.com/NVIDIA/NVFlare/blob/2d2d6f7acc43e81b1d181ff4c2fb8cccfba54e31/nvflare/private/fed/server/server_runner.py",
+      "https://github.com/NVIDIA/NVFlare/blob/2d2d6f7acc43e81b1d181ff4c2fb8cccfba54e31/nvflare/private/fed/client/client_runner.py",
+      "https://github.com/NVIDIA/NVFlare/blob/2d2d6f7acc43e81b1d181ff4c2fb8cccfba54e31/nvflare/private/fed/server/job_runner.py",
+      "https://github.com/NVIDIA/NVFlare/blob/2d2d6f7acc43e81b1d181ff4c2fb8cccfba54e31/nvflare/apis/workspace.py"
+    ],
+    "source_checked": "2026-11-10",
+    "source_label": "Discussion proposal: audit improvement program and current implementation boundaries"
+  },
+  {
+    "id": 19,
+    "title": "Group C: event coverage",
+    "label": "Proposed",
+    "takeaway": "Add explicit outcomes at authoritative decisions and keep audit emission independent of committed operations.",
+    "bullets": [],
+    "table": {
+      "headers": [
+        "Stage",
+        "Deliverable"
+      ],
+      "rows": [
+        [
+          "B8",
+          "Record authentication, authorization and admin request, denial, completion and failure outcomes."
+        ],
+        [
+          "B9",
+          "Record workflow/task results, validation rejections and actual completion with correlation IDs."
+        ],
+        [
+          "B10",
+          "Add job/artifact lifecycle hooks in owning components, with safe post-commit audit emission."
+        ]
+      ],
+      "column_widths": [
+        1.0,
+        10.93
+      ],
+      "font_size": 18,
+      "line_spacing": 1.0,
+      "cell_margin_y": 0.02,
+      "header_height": 0.38
+    },
+    "callout": "Post-commit audit failures stay outside storage cleanup and cannot undo a save or replay an action.",
+    "notes": "B8 instruments authoritative authentication/authorization branches, including denials that never reach the command audit filter. Separate claimed from authenticated identities and dispatch from actual command completion; preserve existing permission checks. B9 covers assignment, receipt, execution, result preparation, server validation and actual processing completion. Retain receipt S2 before a linked rejection S3; early wrong-job rejection can leave attempt identity unknown. Reuse established attempts and record only transfer confirmations actually known. B10 adds job and artifact lifecycle hooks in current owners: job managers, model persistors and task artifact stores. Owners supply verified metadata; the writer does not fetch, hash or archive model files. Post-commit event construction, validation, serialization and I/O must all be isolated from storage rollback/cleanup. Failures cannot remove committed payloads, change completed state or replay an operation; report through independent health and verify committed artifacts survive injected emission failures. File-version recovery remains with artifact storage. Preserve task, authorization and storage behavior at each increment.",
+    "sources": [
+      "docs/audit-improvement-program.md",
+      "https://github.com/NVIDIA/NVFlare/blob/2d2d6f7acc43e81b1d181ff4c2fb8cccfba54e31/nvflare/private/fed/server/admin.py",
+      "https://github.com/NVIDIA/NVFlare/blob/2d2d6f7acc43e81b1d181ff4c2fb8cccfba54e31/nvflare/fuel/hci/server/audit.py",
+      "https://github.com/NVIDIA/NVFlare/blob/2d2d6f7acc43e81b1d181ff4c2fb8cccfba54e31/nvflare/private/fed/server/server_runner.py",
+      "https://github.com/NVIDIA/NVFlare/blob/2d2d6f7acc43e81b1d181ff4c2fb8cccfba54e31/nvflare/private/fed/client/client_runner.py",
+      "https://github.com/NVIDIA/NVFlare/blob/2d2d6f7acc43e81b1d181ff4c2fb8cccfba54e31/nvflare/private/fed/server/job_runner.py",
+      "https://github.com/NVIDIA/NVFlare/blob/2d2d6f7acc43e81b1d181ff4c2fb8cccfba54e31/nvflare/apis/workspace.py"
+    ],
+    "source_checked": "2026-11-10",
+    "source_label": "Discussion proposal: audit improvement program and current implementation boundaries"
+  },
+  {
+    "id": 20,
+    "title": "Group D: deployment capabilities",
+    "label": "Proposed",
+    "takeaway": "Select optional deployment capabilities on their own prerequisites; keep activation and rollback explicit.",
+    "bullets": [],
+    "table": {
+      "headers": [
+        "Stage",
+        "Deliverable"
+      ],
+      "rows": [
+        [
+          "B11",
+          "Add optional rotation with safe reopening and retrieval of every retained segment."
+        ],
+        [
+          "B12",
+          "Add optional authenticated collection, bounded persistent buffering, deduplication and export health."
+        ],
+        [
+          "B13",
+          "Integrate archives, explicit acknowledgements and site-controlled retention."
+        ],
+        [
+          "B14",
+          "Offer optional strict admission before selected sensitive admin changes; never replay on audit failure."
+        ],
+        [
+          "B15",
+          "Define deployment profiles, recovery drills, performance measurements and operating guidance."
+        ]
+      ],
+      "column_widths": [
+        1.0,
+        10.93
+      ],
+      "font_size": 18,
+      "line_spacing": 1.0,
+      "cell_margin_y": 0.02,
+      "header_height": 0.38
+    },
+    "callout": "B14 needs B2/B3/B4/B8, not a collector or archive; optional capabilities have separate prerequisites.",
+    "notes": "B11 uses B5 ownership/inventory: only the owner rotates/reopens and retrieval includes every retained segment. Rotation defaults off and does not imply deletion. B12 adds authenticated transport, bounded persistent buffering, an explicit full-buffer policy, stable event IDs for deduplication and independent export health. B13 integrates remote archives with explicit acknowledgement levels and site-controlled retention. Distinguish local persistence, collector delivery, archive acceptance and protected-retention confirmation; automatic deletion requires explicit policy. This is separate from the local workspace-archive support required in B6, and artifact-byte retention remains separate from the audit store. B14 depends on B2/B3/B4/B8, independently of B12/B13: synchronize intent before a classified sensitive admin change, then record its result. Unmatched intent means unknown completion; failure after the action must not replay it. Audit writes and business changes are not atomic. B15 assembles deployment profiles, drills, measured limits and operating guidance for capabilities actually delivered. Each earlier stage includes its own compatibility/failure/integration checks. Explicit activation and rollback preserve evidence; refresh main and adapt the next increment after each merge.",
+    "sources": [
+      "docs/audit-improvement-program.md",
+      "https://github.com/NVIDIA/NVFlare/blob/2d2d6f7acc43e81b1d181ff4c2fb8cccfba54e31/nvflare/fuel/sec/audit.py",
+      "https://github.com/NVIDIA/NVFlare/blob/2d2d6f7acc43e81b1d181ff4c2fb8cccfba54e31/nvflare/apis/workspace.py",
+      "https://github.com/NVIDIA/NVFlare/blob/2d2d6f7acc43e81b1d181ff4c2fb8cccfba54e31/nvflare/private/fed/server/job_runner.py"
+    ],
+    "source_checked": "2026-11-10",
+    "source_label": "Discussion proposal: audit improvement program and current implementation boundaries"
+  }
+]

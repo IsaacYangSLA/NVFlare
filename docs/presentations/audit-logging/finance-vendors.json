@@ -1,0 +1,57 @@
+[
+  {
+    "id": 26,
+    "title": "Major finance vendors: documented audit implementations",
+    "takeaway": "Public documentation describes distinct capture, reporting and retention layers, with limited implementation detail.",
+    "table": {
+      "headers": [
+        "Vendor / product",
+        "Documented record mechanism",
+        "Public-information limit"
+      ],
+      "rows": [
+        [
+          "Bloomberg Vault",
+          "Capture trade data and metadata; immutable archive with configurable retention.",
+          "Archive capability does not establish complete upstream event capture."
+        ],
+        [
+          "Broadridge regulatory reporting",
+          "Harmonize source data; track data origins, reporting rules and audit trails.",
+          "Public page omits raw event schemas, write algorithms and retention periods."
+        ],
+        [
+          "FIS Compliance Reporting",
+          "Collect, normalize, validate and transmit events; central forensic repository.",
+          "CAT reporting events; public page omits storage internals and fixed retention."
+        ]
+      ],
+      "column_widths": [
+        2.3,
+        5.2,
+        4.43
+      ],
+      "font_size": 16,
+      "line_spacing": 1.0,
+      "cell_margin_y": 0.02,
+      "header_height": 0.38
+    },
+    "callout": "Design lesson: separate capture, normalization/reporting and protected retention; state each guarantee explicitly.",
+    "notes": "These are major-vendor examples selected for publicly documented mechanisms, not a top-three market-share ranking or a comparison of equivalent products. Bloomberg Vault documents trade-data ingestion from third-party trading systems and direct connections to Bloomberg order/execution systems, within a normalized framework with standardized metadata. Its archive provides immutable storage, configurable retention and data holds that preserve selected records. These are archive capabilities; they do not prove complete event production by every upstream system or disclose a universal event schema. Broadridge's Regulatory Trade & Transaction Reporting platform documents harmonization of internal/external data, data lineage (origins and transformations), transparent reporting rules and consolidated audit trails, including support for CAT and other reporting regimes. Its public page does not expose raw event schemas, write synchronization or retention periods. FIS Compliance Reporting documents collection, normalization, validation, transmission and maintenance of reportable events in a central forensic repository, with submission of eligible U.S. equity/option data to FINRA CAT. This is a regulatory-event pipeline, not proof that it records every action in every source application. Its public page does not specify storage algorithms or a universal retention period. The public descriptions leave delivery guarantees and complete source-event coverage unspecified. The engineering lesson is to define event producers, transformations/correlation and protected retention separately, with explicit evidence of what each layer guarantees.",
+    "sources": [
+      "https://professional.bloomberg.com/products/compliance/vault/",
+      "https://www.broadridge.com/capability/data-analytics-and-intelligence/regulatory-trade-transaction-reporting",
+      "https://www.fisglobal.com/products/fis-compliance-suite"
+    ],
+    "source_label": "Vendor documentation: Bloomberg Vault · Broadridge regulatory reporting · FIS Compliance Reporting",
+    "label": "Industry needs",
+    "bullets": [],
+    "source_checked": "2026-11-10",
+    "source_checks": {
+      "https://professional.bloomberg.com/products/compliance/vault/": "2026-11-10",
+      "https://www.broadridge.com/capability/data-analytics-and-intelligence/regulatory-trade-transaction-reporting": "2026-11-10",
+      "https://www.fisglobal.com/products/fis-compliance-suite": "2026-11-10"
+    },
+    "appendix": true
+  }
+]
